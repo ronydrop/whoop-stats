@@ -1,7 +1,10 @@
 "use client";
 
+import { sportLabel } from "@/lib/sports";
+
+
 import { X, Flame, Clock, Heart, Zap } from "lucide-react";
-import { formatDuration, formatCalories, HR_ZONE_COLORS, HR_ZONE_LABELS } from "@/lib/format";
+import { formatNumber, formatDuration, formatCalories, HR_ZONE_COLORS, HR_ZONE_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,35 +48,35 @@ export function WorkoutDetail({ workout: w, onClose }: WorkoutDetailProps) {
         {/* Header */}
         <div className="mb-5">
           <h3 className="text-lg font-semibold text-text-primary">
-            {w.sport_name || "Activity"}
+            {sportLabel(w.sport_name || "Atividade")}
           </h3>
           <p className="text-xs text-text-tertiary mt-0.5">
-            {start.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" })}
+            {start.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", month: "short", day: "numeric", year: "numeric" })}
             {" · "}
-            {start.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+            {start.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "numeric", minute: "2-digit" })}
           </p>
         </div>
 
         {/* Key stats */}
         <div className="grid grid-cols-2 gap-3 mb-5">
-          <Stat icon={<Flame className="w-3.5 h-3.5" />} label="Strain" value={w.strain ? Number(w.strain).toFixed(1) : "--"} color="text-strain" />
-          <Stat icon={<Clock className="w-3.5 h-3.5" />} label="Duration" value={durationMs > 0 ? formatDuration(durationMs) : "--"} />
-          <Stat label="Calories" value={w.kilojoule ? formatCalories(Number(w.kilojoule)) : "--"} />
-          <Stat label="Recorded" value={w.percent_recorded ? `${Number(w.percent_recorded).toFixed(0)}%` : "--"} />
-          <Stat icon={<Heart className="w-3.5 h-3.5" />} label="Avg HR" value={w.average_heart_rate ? `${w.average_heart_rate} bpm` : "--"} />
-          <Stat icon={<Zap className="w-3.5 h-3.5" />} label="Max HR" value={w.max_heart_rate ? `${w.max_heart_rate} bpm` : "--"} />
+          <Stat icon={<Flame className="w-3.5 h-3.5" />} label="Esforço" value={w.strain ? formatNumber(Number(w.strain), 1) : "--"} color="text-strain" />
+          <Stat icon={<Clock className="w-3.5 h-3.5" />} label="Duração" value={durationMs > 0 ? formatDuration(durationMs) : "--"} />
+          <Stat label="Calorias" value={w.kilojoule ? formatCalories(Number(w.kilojoule)) : "--"} />
+          <Stat label="Registro disponível" value={w.percent_recorded ? `${formatNumber(Number(w.percent_recorded), 0)}%` : "--"} />
+          <Stat icon={<Heart className="w-3.5 h-3.5" />} label="FC média" value={w.average_heart_rate ? `${w.average_heart_rate} bpm` : "--"} />
+          <Stat icon={<Zap className="w-3.5 h-3.5" />} label="FC máxima" value={w.max_heart_rate ? `${w.max_heart_rate} bpm` : "--"} />
           {w.distance_meter > 0 && (
-            <Stat label="Distance" value={`${(Number(w.distance_meter) / 1000).toFixed(2)} km`} />
+            <Stat label="Distância" value={`${formatNumber((Number(w.distance_meter) / 1000), 2)} km`} />
           )}
           {w.altitude_gain_meter > 0 && (
-            <Stat label="Elevation Gain" value={`${Number(w.altitude_gain_meter).toFixed(0)} m`} />
+            <Stat label="Ganho de elevação" value={`${formatNumber(Number(w.altitude_gain_meter), 0)} m`} />
           )}
         </div>
 
         {/* HR Zones breakdown */}
         {totalZoneMs > 0 && (
           <div>
-            <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Heart Rate Zones</h4>
+            <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Zonas de frequência cardíaca</h4>
             <div className="space-y-1.5">
               {zones.map((z, i) => {
                 const pct = (z / totalZoneMs) * 100;
@@ -87,7 +90,7 @@ export function WorkoutDetail({ workout: w, onClose }: WorkoutDetailProps) {
                       />
                     </div>
                     <span className="text-[10px] text-text-muted w-10 text-right">{formatDuration(z)}</span>
-                    <span className="text-[10px] text-text-muted w-8 text-right">{pct.toFixed(0)}%</span>
+                    <span className="text-[10px] text-text-muted w-8 text-right">{formatNumber(pct, 0)}%</span>
                   </div>
                 );
               })}

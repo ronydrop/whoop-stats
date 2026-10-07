@@ -8,9 +8,9 @@ import { MobileNav } from "@/components/mobile-nav";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "WHOOP Stats",
+  title: "WHOOP em Português",
   description:
-    "A high-performance WHOOP analytics dashboard — track strain, recovery, sleep, and workouts",
+    "Acompanhe seu esforço, recuperação, sono e treinos em português brasileiro.",
 };
 
 export const viewport: Viewport = {
@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="pt-BR" className="dark">
       <body
         className={`${inter.variable} font-sans min-h-screen bg-background text-text-primary selection:bg-accent/20`}
       >
@@ -36,7 +36,7 @@ export default function RootLayout({
           </main>
         </div>
         <MobileNav />
-        <Toaster theme="dark" position="bottom-right" />
+        <Toaster theme="dark" position="bottom-right" containerAriaLabel="Notificações" />
       </body>
     </html>
   );

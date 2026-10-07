@@ -9,7 +9,7 @@
 --   5. TimescaleDB continuous aggregates for dashboard roll-ups
 -- =============================================================================
 
-CREATE EXTENSION IF NOT EXISTS timescaledb;
+
 
 -- ---------------------------------------------------------------------------
 -- Core User Tables
@@ -80,7 +80,6 @@ CREATE TABLE cycles (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (id, start_time)
 );
-SELECT create_hypertable('cycles', 'start_time');
 COMMENT ON TABLE cycles IS 'WHOOP physiological cycles (typically one per day) with strain scores';
 
 CREATE TABLE recoveries (
@@ -100,7 +99,6 @@ CREATE TABLE recoveries (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (id, start_time)
 );
-SELECT create_hypertable('recoveries', 'start_time');
 COMMENT ON TABLE recoveries IS 'Daily recovery scores with HRV, RHR, SpO2, and skin temperature';
 
 CREATE TABLE sleeps (
@@ -132,7 +130,6 @@ CREATE TABLE sleeps (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (id, start_time)
 );
-SELECT create_hypertable('sleeps', 'start_time');
 COMMENT ON TABLE sleeps IS 'Sleep sessions with stage breakdowns, sleep need, and debt tracking';
 
 CREATE TABLE workouts (
@@ -162,7 +159,6 @@ CREATE TABLE workouts (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (id, start_time)
 );
-SELECT create_hypertable('workouts', 'start_time');
 COMMENT ON TABLE workouts IS 'Workout sessions with HR zones, GPS data, and sport classification';
 
 -- ---------------------------------------------------------------------------
@@ -178,81 +174,64 @@ CREATE INDEX IF NOT EXISTS idx_recoveries_user_start ON recoveries(user_id, star
 CREATE INDEX IF NOT EXISTS idx_webhook_status_created ON webhook_events(status, created_at ASC);
 
 -- ---------------------------------------------------------------------------
--- Continuous Aggregates (materialized views auto-refreshed by TimescaleDB)
+-- Agregações atualizadas em cada consulta
 -- ---------------------------------------------------------------------------
 -- These power the /insights endpoint and 30-day trend charts on the dashboard.
--- Refresh policies ensure data stays current (checked hourly, looking back 3 days).
+-- As consultas usam views nativas do PostgreSQL.
 
-CREATE MATERIALIZED VIEW daily_strain
-WITH (timescaledb.continuous) AS
+CREATE VIEW daily_strain
+AS
 SELECT
     user_id,
-    time_bucket('1 day', start_time) AS bucket,
+    date_trunc('day', start_time) AS bucket,
     AVG(strain) AS avg_strain,
     MAX(strain) AS max_strain
 FROM cycles
-GROUP BY user_id, time_bucket('1 day', start_time);
+GROUP BY user_id, date_trunc('day', start_time);
 
-SELECT add_continuous_aggregate_policy('daily_strain',
-    start_offset => INTERVAL '3 days',
-    end_offset => INTERVAL '1 hour',
-    schedule_interval => INTERVAL '1 hour');
 
-CREATE MATERIALIZED VIEW weekly_strain
-WITH (timescaledb.continuous) AS
+
+CREATE VIEW weekly_strain
+AS
 SELECT
     user_id,
-    time_bucket('1 week', start_time) AS bucket,
+    date_trunc('week', start_time) AS bucket,
     AVG(strain) AS avg_strain,
     MAX(strain) AS max_strain
 FROM cycles
-GROUP BY user_id, time_bucket('1 week', start_time);
+GROUP BY user_id, date_trunc('week', start_time);
 
-SELECT add_continuous_aggregate_policy('weekly_strain',
-    start_offset => INTERVAL '1 month',
-    end_offset => INTERVAL '1 hour',
-    schedule_interval => INTERVAL '1 hour');
 
-CREATE MATERIALIZED VIEW daily_recovery
-WITH (timescaledb.continuous) AS
+
+CREATE VIEW daily_recovery
+AS
 SELECT
     user_id,
-    time_bucket('1 day', start_time) AS bucket,
+    date_trunc('day', start_time) AS bucket,
     AVG(recovery_score) AS avg_recovery
 FROM recoveries
-GROUP BY user_id, time_bucket('1 day', start_time);
+GROUP BY user_id, date_trunc('day', start_time);
 
-SELECT add_continuous_aggregate_policy('daily_recovery',
-    start_offset => INTERVAL '3 days',
-    end_offset => INTERVAL '1 hour',
-    schedule_interval => INTERVAL '1 hour');
 
-CREATE MATERIALIZED VIEW weekly_recovery
-WITH (timescaledb.continuous) AS
+
+CREATE VIEW weekly_recovery
+AS
 SELECT
     user_id,
-    time_bucket('1 week', start_time) AS bucket,
+    date_trunc('week', start_time) AS bucket,
     AVG(recovery_score) AS avg_recovery
 FROM recoveries
-GROUP BY user_id, time_bucket('1 week', start_time);
+GROUP BY user_id, date_trunc('week', start_time);
 
-SELECT add_continuous_aggregate_policy('weekly_recovery',
-    start_offset => INTERVAL '1 month',
-    end_offset => INTERVAL '1 hour',
-    schedule_interval => INTERVAL '1 hour');
 
-CREATE MATERIALIZED VIEW daily_sleep
-WITH (timescaledb.continuous) AS
+
+CREATE VIEW daily_sleep
+AS
 SELECT
     user_id,
-    time_bucket('1 day', start_time) AS bucket,
+    date_trunc('day', start_time) AS bucket,
     AVG(performance_score) AS avg_performance,
     AVG(sleep_efficiency_percentage) AS avg_efficiency
 FROM sleeps
 WHERE nap = false
-GROUP BY user_id, time_bucket('1 day', start_time);
-
-SELECT add_continuous_aggregate_policy('daily_sleep',
-    start_offset => INTERVAL '3 days',
-    end_offset => INTERVAL '1 hour',
-    schedule_interval => INTERVAL '1 hour');
+GROUP BY user_id, date_trunc('day', start_time);

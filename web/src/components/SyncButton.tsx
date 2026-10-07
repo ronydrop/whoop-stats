@@ -13,11 +13,11 @@ export function SyncButton() {
     startTransition(async () => {
       try {
         await syncWhoopData();
-        toast.success("Sync triggered successfully", {
-          description: "Your data is being refreshed in the background.",
+        toast.success("Sincronização iniciada", {
+          description: "Seus dados estão sendo atualizados em segundo plano.",
         });
       } catch (err: unknown) {
-        toast.error("Sync failed", {
+        toast.error("Falha na sincronização", {
           description: err instanceof Error ? err.message : String(err),
         });
       }
@@ -36,7 +36,7 @@ export function SyncButton() {
       )}
     >
       <RefreshCw className={cn("w-4 h-4 text-zinc-400 group-hover:text-zinc-300", isPending && "animate-spin")} />
-      {isPending ? "Syncing..." : "Sync"}
+      {isPending ? "Sincronizando..." : "Sincronizar"}
     </button>
   );
 }

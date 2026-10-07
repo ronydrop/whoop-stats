@@ -15,11 +15,11 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/recovery", label: "Recovery", icon: HeartPulse },
-  { href: "/sleep", label: "Sleep", icon: Moon },
-  { href: "/strain", label: "Strain", icon: Flame },
-  { href: "/workouts", label: "Workouts", icon: Dumbbell },
+  { href: "/", label: "Visão geral", icon: LayoutDashboard },
+  { href: "/recovery", label: "Recuperação", icon: HeartPulse },
+  { href: "/sleep", label: "Sono", icon: Moon },
+  { href: "/strain", label: "Esforço", icon: Flame },
+  { href: "/workouts", label: "Treinos", icon: Dumbbell },
 ];
 
 export function Sidebar() {
@@ -40,7 +40,7 @@ export function Sidebar() {
         </div>
         {!collapsed && (
           <span className="text-sm font-semibold text-text-primary tracking-tight truncate">
-            WHOOP Stats
+            WHOOP em Português
           </span>
         )}
       </div>

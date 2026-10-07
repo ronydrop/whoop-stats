@@ -72,7 +72,7 @@ export function RecoveryGauge({ score, size = 180 }: RecoveryGaugeProps) {
         <span className="text-4xl font-bold tracking-tight" style={{ color }}>
           {score !== null ? `${score}%` : "--%"}
         </span>
-        <span className="text-xs text-text-tertiary mt-1 uppercase tracking-wider">Recovery</span>
+        <span className="text-xs text-text-tertiary mt-1 uppercase tracking-wider">Recuperação</span>
       </div>
     </div>
   );

@@ -1,10 +1,13 @@
 "use client";
 
+import { sportLabel } from "@/lib/sports";
+
+
 import { useState, useMemo } from "react";
 import { WorkoutCard } from "@/components/workout-card";
 import { WorkoutDetail } from "@/components/workout-detail";
 import { Dumbbell, SlidersHorizontal, X, Flame, Clock, ChevronUp, ChevronDown, Timer } from "lucide-react";
-import { formatDuration, kjToCal } from "@/lib/format";
+import { formatNumber, formatDuration, kjToCal } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,14 +38,14 @@ function getWorkoutDurationMs(w: AnyRecord): number {
 }
 
 const EFFORT_LEVELS = [
-  { key: "easy", label: "Easy", range: "< 5", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  { key: "moderate", label: "Moderate", range: "5-10", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  { key: "hard", label: "Hard", range: "10-14", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  { key: "max", label: "Max", range: "14+", color: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
+  { key: "easy", label: "Leve", range: "< 5", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  { key: "moderate", label: "Moderada", range: "5-10", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+  { key: "hard", label: "Intensa", range: "10-14", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+  { key: "max", label: "Máxima", range: "14+", color: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
 ] as const;
 
 const DURATION_FILTERS = [
-  { key: "any", label: "Any" },
+  { key: "any", label: "Todas" },
   { key: "short", label: "< 20m" },
   { key: "medium", label: "20-45m" },
   { key: "long", label: "45m+" },
@@ -148,7 +151,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
         <div className="flex items-center gap-2 mb-3">
           <SlidersHorizontal className="w-3.5 h-3.5 text-text-muted" />
           <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
-            Activity Type
+            Tipo de atividade
           </span>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -167,7 +170,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
                 )}
               >
                 <span>{info.emoji}</span>
-                <span className="capitalize">{sport.replace("-", " ")}</span>
+                <span className="capitalize">{sportLabel(sport)}</span>
                 <span className="ml-0.5 opacity-60">×{count}</span>
               </button>
             );
@@ -179,7 +182,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
       <div className="flex flex-wrap gap-3">
         {/* Effort filter */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted mr-1">Effort</span>
+          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted mr-1">Intensidade</span>
           {EFFORT_LEVELS.map((lvl) => {
             const isActive = selectedEffort.has(lvl.key);
             return (
@@ -192,7 +195,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
                     ? lvl.color
                     : "border-border-subtle text-text-muted hover:text-text-secondary"
                 )}
-                title={`Strain ${lvl.range}`}
+                title={`Esforço ${lvl.range}`}
               >
                 {lvl.label}
               </button>
@@ -221,7 +224,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
 
         {/* Sort with direction arrows */}
         <div className="flex items-center gap-1.5 ml-auto">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted mr-1">Sort</span>
+          <span className="text-[10px] font-medium uppercase tracking-wider text-text-muted mr-1">Ordenar</span>
           {(["date", "strain", "duration", "calories"] as const).map((s) => {
             const isActive = sortBy === s;
             return (
@@ -235,7 +238,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
                     : "text-text-muted hover:text-text-secondary"
                 )}
               >
-                {s}
+                {{ date: "Data", strain: "Esforço", duration: "Duração", calories: "Calorias" }[s]}
                 {isActive && (
                   sortAsc
                     ? <ChevronUp className="w-3 h-3" />
@@ -251,11 +254,11 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-text-tertiary flex-wrap">
           <span className="font-medium text-text-secondary">{filtered.length}</span>
-          <span>workouts</span>
+          <span>treinos</span>
           <span className="text-text-muted">·</span>
-          <span className="flex items-center gap-1"><Flame className="w-3 h-3" /> {totalStrain.toFixed(1)} strain</span>
+          <span className="flex items-center gap-1"><Flame className="w-3 h-3" /> {formatNumber(totalStrain, 1)} de esforço</span>
           <span className="text-text-muted">·</span>
-          <span>{totalCal.toLocaleString()} Cal</span>
+          <span>{totalCal.toLocaleString("pt-BR")} Cal</span>
           <span className="text-text-muted">·</span>
           <span className="flex items-center gap-1"><Timer className="w-3 h-3" /> {formatDuration(totalDurationMs)}</span>
         </div>
@@ -269,7 +272,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
             className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-secondary transition-colors"
           >
             <X className="w-3 h-3" />
-            Clear filters
+            Limpar filtros
           </button>
         )}
       </div>
@@ -279,7 +282,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
         {filtered.map((w, i) => (
           <div key={i} onClick={() => setDetailWorkout(w)} className="cursor-pointer">
             <WorkoutCard
-              sportName={w.sport_name || "Activity"}
+              sportName={sportLabel(w.sport_name || "Atividade")}
               strain={Number(w.strain || 0)}
               kilojoule={Number(w.kilojoule || 0)}
               startTime={w.start_time}
@@ -302,8 +305,8 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
       {filtered.length === 0 && (
         <div className="glass-card p-12 flex flex-col items-center justify-center text-center">
           <Dumbbell className="w-10 h-10 text-text-muted mb-3" />
-          <h3 className="text-sm font-semibold text-text-primary mb-1">No matching workouts</h3>
-          <p className="text-xs text-text-tertiary">Try adjusting your filters</p>
+          <h3 className="text-sm font-semibold text-text-primary mb-1">Nenhum treino corresponde aos filtros</h3>
+          <p className="text-xs text-text-tertiary">Tente ajustar os filtros</p>
         </div>
       )}
 

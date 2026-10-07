@@ -123,7 +123,7 @@ func main() {
 
 	// Start HTTP server (shared for both modes)
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%s", cfg.ServerPort),
+		Addr:         fmt.Sprintf("127.0.0.1:%s", cfg.ServerPort),
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 30 * time.Second,

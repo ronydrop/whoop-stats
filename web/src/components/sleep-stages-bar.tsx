@@ -12,17 +12,17 @@ interface SleepStagesBarProps {
 }
 
 const stages = [
-  { key: "awake", label: "Awake", color: "bg-zinc-400" },
+  { key: "awake", label: "Acordado", color: "bg-zinc-400" },
   { key: "rem", label: "REM", color: "bg-indigo-400" },
-  { key: "light", label: "Light", color: "bg-blue-300" },
-  { key: "deep", label: "Deep", color: "bg-blue-600" },
+  { key: "light", label: "Leve", color: "bg-blue-300" },
+  { key: "deep", label: "Profundo", color: "bg-blue-600" },
 ] as const;
 
 export function SleepStagesBar({ light, rem, deep, awake }: SleepStagesBarProps) {
   const values = { awake, rem, light, deep };
   const total = awake + rem + light + deep;
 
-  if (total === 0) return <div className="text-xs text-text-muted">No stage data</div>;
+  if (total === 0) return <div className="text-xs text-text-muted">Sem dados das fases</div>;
 
   return (
     <div className="space-y-2.5">

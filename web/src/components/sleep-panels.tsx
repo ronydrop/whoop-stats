@@ -3,7 +3,7 @@
 import { MetricCard } from "@/components/metric-card";
 import { DetailPopup, DetailRow, useDetailPopup } from "@/components/detail-popup";
 import { BedDouble, Clock, Brain, Moon } from "lucide-react";
-import { formatDuration } from "@/lib/format";
+import { formatNumber, formatDuration } from "@/lib/format";
 
 interface SleepPanelData {
   sleepPerf: number | null;
@@ -57,37 +57,37 @@ export function SleepPanels({ data: d }: { data: SleepPanelData }) {
     <>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MetricCard
-          title="Performance"
+          title="Desempenho"
           value={d.sleepPerf ? `${d.sleepPerf}%` : "--%"}
           subtitle={d.perfDelta != null ? (
             <span className={`text-[10px] ${d.perfDelta > 0 ? "text-emerald-400" : d.perfDelta < 0 ? "text-rose-400" : "text-text-muted"}`}>
-              {d.perfDelta > 0 ? "+" : ""}{d.perfDelta}% from yesterday
+              {d.perfDelta > 0 ? "+" : ""}{d.perfDelta}% desde ontem
             </span>
-          ) : d.totalSleepMs > 0 ? fmtDur(d.totalSleepMs) + " total" : undefined}
+          ) : d.totalSleepMs > 0 ? fmtDur(d.totalSleepMs) + " no total" : undefined}
           icon={<Moon className="w-4 h-4" />}
           accentColor="violet"
           onClick={() => open("performance")}
         />
         <MetricCard
-          title="Efficiency"
-          value={d.efficiency ? `${d.efficiency.toFixed(0)}%` : "--"}
-          subtitle="Time asleep vs in bed"
+          title="Eficiência"
+          value={d.efficiency ? `${formatNumber(d.efficiency, 0)}%` : "--"}
+          subtitle="Tempo dormindo em relação ao tempo na cama"
           icon={<BedDouble className="w-4 h-4" />}
           accentColor="blue"
           onClick={() => open("efficiency")}
         />
         <MetricCard
-          title="Consistency"
-          value={d.consistency ? `${d.consistency.toFixed(0)}%` : "--"}
-          subtitle="Schedule regularity"
+          title="Regularidade"
+          value={d.consistency ? `${formatNumber(d.consistency, 0)}%` : "--"}
+          subtitle="Regularidade dos horários"
           icon={<Clock className="w-4 h-4" />}
           accentColor="green"
           onClick={() => open("stages")}
         />
         <MetricCard
-          title="Resp Rate"
-          value={d.respRate ? `${d.respRate.toFixed(1)}` : "--"}
-          subtitle="Breaths per minute"
+          title="Frequência respiratória"
+          value={d.respRate ? `${formatNumber(d.respRate, 1)}` : "--"}
+          subtitle="Respirações por minuto"
           icon={<Brain className="w-4 h-4" />}
           accentColor="yellow"
           onClick={() => open("resp")}
@@ -96,30 +96,30 @@ export function SleepPanels({ data: d }: { data: SleepPanelData }) {
 
       {/* Performance Detail */}
       {popup === "performance" && (
-        <DetailPopup title="Sleep Performance" onClose={close}>
+        <DetailPopup title="Desempenho do sono" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            Sleep performance measures how well your actual sleep met your body&apos;s sleep need, including recovery from recent strain.
+            O desempenho do sono mede quanto o tempo dormido atendeu à necessidade do seu corpo, incluindo a recuperação do esforço recente.
           </p>
-          <DetailRow label="Performance Score" value={d.sleepPerf ? `${d.sleepPerf}%` : "--"} />
-          <DetailRow label="7-Day Avg Performance" value={d.avg7dPerf ? `${d.avg7dPerf.toFixed(0)}%` : "--"} />
-          <DetailRow label="30-Day Avg Performance" value={d.avg30dPerf ? `${d.avg30dPerf.toFixed(0)}%` : "--"} />
-          <DetailRow label="Total Sleep" value={fmtDur(d.totalSleepMs)} />
-          <DetailRow label="Time in Bed" value={fmtDur(d.totalInBedMs)} />
-          <DetailRow label="Sleep Need" value={sleepNeedMs > 0 ? fmtDur(sleepNeedMs) : "--"} hint="Baseline + strain need - nap credit" />
+          <DetailRow label="Pontuação de desempenho" value={d.sleepPerf ? `${d.sleepPerf}%` : "--"} />
+          <DetailRow label="Desempenho médio em 7 dias" value={d.avg7dPerf ? `${formatNumber(d.avg7dPerf, 0)}%` : "--"} />
+          <DetailRow label="Desempenho médio em 30 dias" value={d.avg30dPerf ? `${formatNumber(d.avg30dPerf, 0)}%` : "--"} />
+          <DetailRow label="Sono total" value={fmtDur(d.totalSleepMs)} />
+          <DetailRow label="Tempo na cama" value={fmtDur(d.totalInBedMs)} />
+          <DetailRow label="Necessidade de sono" value={sleepNeedMs > 0 ? fmtDur(sleepNeedMs) : "--"} hint="Necessidade básica + esforço − crédito de cochilos" />
           {d.baselineMs && d.baselineMs > 0 && (
-            <DetailRow label="Baseline Need" value={fmtDur(d.baselineMs)} hint="Your body's base sleep requirement" />
+            <DetailRow label="Necessidade básica" value={fmtDur(d.baselineMs)} hint="Necessidade básica de sono do seu corpo" />
           )}
           {d.needFromStrainMs && d.needFromStrainMs > 0 && (
-            <DetailRow label="Added from Strain" value={`+${fmtDur(d.needFromStrainMs)}`} hint="Extra sleep needed from recent activity" />
+            <DetailRow label="Adicional devido ao esforço" value={`+${fmtDur(d.needFromStrainMs)}`} hint="Sono adicional necessário devido à atividade recente" />
           )}
           {overUnder != null && (
             <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
               <p className="text-xs text-text-secondary">
                 {overUnder > 0
-                  ? `You slept ${fmtDur(overUnder)} more than your sleep need — great recovery!`
+                  ? `Você dormiu ${fmtDur(overUnder)} a mais do que sua necessidade de sono — ótima recuperação!`
                   : overUnder < 0
-                    ? `You slept ${fmtDur(Math.abs(overUnder))} less than your sleep need.`
-                    : "You met your exact sleep need."}
+                    ? `Você dormiu ${fmtDur(Math.abs(overUnder))} a menos do que sua necessidade de sono.`
+                    : "Você atingiu sua necessidade exata de sono."}
               </p>
             </div>
           )}
@@ -128,56 +128,56 @@ export function SleepPanels({ data: d }: { data: SleepPanelData }) {
 
       {/* Efficiency Detail */}
       {popup === "efficiency" && (
-        <DetailPopup title="Sleep Efficiency" onClose={close}>
+        <DetailPopup title="Eficiência do sono" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            Efficiency measures the percentage of time you were actually asleep while in bed. Higher is better — aim for 85%+.
+            A eficiência mede a porcentagem do tempo na cama em que você dormiu. Valores maiores são melhores — busque 85% ou mais.
           </p>
-          <DetailRow label="Efficiency" value={d.efficiency ? `${d.efficiency.toFixed(1)}%` : "--"} />
-          <DetailRow label="7-Day Avg" value={d.avg7dEfficiency ? `${d.avg7dEfficiency.toFixed(1)}%` : "--"} />
-          <DetailRow label="30-Day Avg" value={d.avg30dEfficiency ? `${d.avg30dEfficiency.toFixed(1)}%` : "--"} />
-          <DetailRow label="Time Awake in Bed" value={fmtDur(d.awakeMs)} />
-          <DetailRow label="Disturbances" value={d.disturbances ?? "--"} hint="Number of times you woke up" />
-          <DetailRow label="Sleep Cycles" value={d.sleepCycles ?? "--"} hint="Complete sleep cycles completed" />
-          <DetailRow label="Sleep Debt" value={sleepDebt != null && sleepDebt > 0 ? fmtDur(sleepDebt) : "None"} hint="Accumulated sleep deficit" />
+          <DetailRow label="Eficiência" value={d.efficiency ? `${formatNumber(d.efficiency, 1)}%` : "--"} />
+          <DetailRow label="Média de 7 dias" value={d.avg7dEfficiency ? `${formatNumber(d.avg7dEfficiency, 1)}%` : "--"} />
+          <DetailRow label="Média de 30 dias" value={d.avg30dEfficiency ? `${formatNumber(d.avg30dEfficiency, 1)}%` : "--"} />
+          <DetailRow label="Tempo acordado na cama" value={fmtDur(d.awakeMs)} />
+          <DetailRow label="Despertares" value={d.disturbances ?? "--"} hint="Número de vezes que você acordou" />
+          <DetailRow label="Ciclos de sono" value={d.sleepCycles ?? "--"} hint="Ciclos completos de sono" />
+          <DetailRow label="Déficit de sono" value={sleepDebt != null && sleepDebt > 0 ? fmtDur(sleepDebt) : "Nenhum"} hint="Déficit de sono acumulado" />
           {d.napCount > 0 && (
-            <DetailRow label="Naps" value={d.napCount.toLocaleString()} hint="Naps in data range" />
+            <DetailRow label="Cochilos" value={d.napCount.toLocaleString("pt-BR")} hint="Cochilos registrados no período" />
           )}
         </DetailPopup>
       )}
 
       {/* Stages Detail */}
       {popup === "stages" && (
-        <DetailPopup title="Sleep Stages Breakdown" onClose={close}>
+        <DetailPopup title="Distribuição das fases do sono" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            Your sleep is composed of light, REM, and deep sleep stages. Deep and REM sleep are critical for physical recovery and memory consolidation.
+            Seu sono é composto pelas fases leve, REM e profunda. O sono profundo e o REM são essenciais para a recuperação física e a consolidação da memória.
           </p>
-          <DetailRow label="Deep Sleep" value={`${fmtDur(d.deepMs)} (${deepPct.toFixed(0)}%)`} hint="Ideal: 15-20% — physical recovery & growth hormone" />
-          <DetailRow label="REM Sleep" value={`${fmtDur(d.remMs)} (${remPct.toFixed(0)}%)`} hint="Ideal: 20-25% — memory, learning, emotional processing" />
-          <DetailRow label="Light Sleep" value={`${fmtDur(d.lightMs)} (${lightPct.toFixed(0)}%)`} hint="Transition sleep — typically 50-60%" />
-          <DetailRow label="Awake Time" value={fmtDur(d.awakeMs)} />
-          {d.noDataMs > 0 && <DetailRow label="No Data" value={fmtDur(d.noDataMs)} />}
-          <DetailRow label="Avg Duration" value={d.avgDurationMs ? fmtDur(d.avgDurationMs) : "--"} hint="Average across dataset" />
-          {d.avgDeepPct != null && <DetailRow label="Avg Deep %" value={`${d.avgDeepPct.toFixed(0)}%`} />}
-          {d.avgRemPct != null && <DetailRow label="Avg REM %" value={`${d.avgRemPct.toFixed(0)}%`} />}
-          <DetailRow label="Sleep Consistency" value={d.consistency ? `${d.consistency.toFixed(0)}%` : "--"} hint="How regular your sleep schedule is" />
+          <DetailRow label="Sono profundo" value={`${fmtDur(d.deepMs)} (${formatNumber(deepPct, 0)}%)`} hint="Ideal: 15%–20% — recuperação física e hormônio do crescimento" />
+          <DetailRow label="Sono REM" value={`${fmtDur(d.remMs)} (${formatNumber(remPct, 0)}%)`} hint="Ideal: 20%–25% — memória, aprendizado e processamento emocional" />
+          <DetailRow label="Sono leve" value={`${fmtDur(d.lightMs)} (${formatNumber(lightPct, 0)}%)`} hint="Sono de transição — geralmente 50%–60%" />
+          <DetailRow label="Tempo acordado" value={fmtDur(d.awakeMs)} />
+          {d.noDataMs > 0 && <DetailRow label="Sem dados" value={fmtDur(d.noDataMs)} />}
+          <DetailRow label="Duração média" value={d.avgDurationMs ? fmtDur(d.avgDurationMs) : "--"} hint="Média do período" />
+          {d.avgDeepPct != null && <DetailRow label="Sono profundo médio (%)" value={`${formatNumber(d.avgDeepPct, 0)}%`} />}
+          {d.avgRemPct != null && <DetailRow label="Sono REM médio (%)" value={`${formatNumber(d.avgRemPct, 0)}%`} />}
+          <DetailRow label="Regularidade do sono" value={d.consistency ? `${formatNumber(d.consistency, 0)}%` : "--"} hint="Regularidade dos seus horários de sono" />
         </DetailPopup>
       )}
 
       {/* Respiratory Rate Detail */}
       {popup === "resp" && (
-        <DetailPopup title="Respiratory Rate" onClose={close}>
+        <DetailPopup title="Frequência respiratória" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            Normal respiratory rate during sleep is 12-20 breaths/min. Changes can indicate illness, altitude effects, or training adaptations.
+            A frequência respiratória habitual durante o sono é de 12 a 20 respirações por minuto. Alterações podem indicar doença, efeitos da altitude ou adaptações ao treino.
           </p>
-          <DetailRow label="Current" value={d.respRate ? `${d.respRate.toFixed(1)} bpm` : "--"} />
+          <DetailRow label="Atual" value={d.respRate ? `${formatNumber(d.respRate, 1)} bpm` : "--"} />
           {d.respRate && (
             <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
               <p className="text-xs text-text-secondary">
                 {d.respRate >= 12 && d.respRate <= 20
-                  ? "Your respiratory rate is within the normal range."
+                  ? "Sua frequência respiratória está dentro da faixa habitual."
                   : d.respRate < 12
-                    ? "Your respiratory rate is below normal — this is unusual."
-                    : "Your respiratory rate is elevated — this could indicate illness or altitude."}
+                    ? "Sua frequência respiratória está abaixo da faixa habitual."
+                    : "Sua frequência respiratória está elevada — isso pode estar relacionado a doença ou altitude."}
               </p>
             </div>
           )}

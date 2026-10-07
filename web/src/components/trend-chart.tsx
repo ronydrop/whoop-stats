@@ -10,7 +10,7 @@ import {
   ResponsiveContainer,
   TooltipProps,
 } from "recharts";
-import { formatShortDate } from "@/lib/format";
+import { formatNumber, formatShortDate } from "@/lib/format";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +34,7 @@ function ChartTooltip({ active, payload, label, unit }: TooltipProps<number, str
     <div className="rounded-lg border border-border-subtle bg-surface-0/95 px-3 py-2 shadow-xl backdrop-blur-xl">
       <p className="text-[10px] text-text-muted mb-1">{label}</p>
       <p className="text-sm font-semibold text-text-primary">
-        {payload[0].value != null ? `${Number(payload[0].value).toFixed(1)}${unit || ""}` : "--"}
+        {payload[0].value != null ? `${formatNumber(Number(payload[0].value), 1)}${unit || ""}` : "--"}
       </p>
     </div>
   );
@@ -59,7 +59,7 @@ export function TrendChart({
         className="flex items-center justify-center text-text-muted text-xs"
         style={{ height }}
       >
-        No data
+        Sem dados
       </div>
     );
   }

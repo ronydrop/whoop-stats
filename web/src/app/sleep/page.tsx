@@ -98,8 +98,8 @@ export default async function SleepPage() {
   return (
     <div className="px-4 md:px-8 lg:px-10 py-6 md:py-8 max-w-7xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Sleep</h1>
-        <p className="text-sm text-text-tertiary mt-0.5">Analyze your sleep quality and patterns</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Sono</h1>
+        <p className="text-sm text-text-tertiary mt-0.5">Analise a qualidade e os padrões do seu sono</p>
       </header>
 
       {/* Clickable hero stats */}
@@ -108,17 +108,17 @@ export default async function SleepPage() {
       {/* Sleep stages for last night */}
       {totalSleepMs > 0 && (
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-3">Last Night&apos;s Stages</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Fases da última noite</h3>
           <SleepStagesBar light={lightMs} rem={remMs} deep={deepMs} awake={awakeMs} />
           <div className="flex gap-4 mt-4 text-xs text-text-tertiary">
             {sleepDebtMs != null && sleepDebtMs > 0 && (
-              <span>Sleep debt: {formatDuration(Math.abs(sleepDebtMs))}</span>
+              <span>Déficit de sono: {formatDuration(Math.abs(sleepDebtMs))}</span>
             )}
             {disturbances != null && (
-              <span>{disturbances} disturbance{disturbances !== 1 ? "s" : ""}</span>
+              <span>{disturbances} despertar{disturbances !== 1 ? "es" : ""}</span>
             )}
             {sleepCycles != null && (
-              <span>{sleepCycles} sleep cycle{sleepCycles !== 1 ? "s" : ""}</span>
+              <span>{sleepCycles} ciclo de sono{sleepCycles !== 1 ? "s" : ""}</span>
             )}
           </div>
         </div>
@@ -127,13 +127,13 @@ export default async function SleepPage() {
       {/* Trends */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">Sleep Performance</h3>
-          <p className="text-xs text-text-tertiary mb-3">Percentage score</p>
+          <h3 className="text-sm font-semibold text-text-primary mb-1">Desempenho do sono</h3>
+          <p className="text-xs text-text-tertiary mb-3">Pontuação em porcentagem</p>
           <TrendChartWithToggle data={perfTrend} color="var(--color-sleep)" gradientId="sleepPerfGrad" unit="%" domain={[0, 100]} height={200} />
         </div>
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">Sleep Duration</h3>
-          <p className="text-xs text-text-tertiary mb-3">Hours of actual sleep</p>
+          <h3 className="text-sm font-semibold text-text-primary mb-1">Duração do sono</h3>
+          <p className="text-xs text-text-tertiary mb-3">Horas efetivamente dormidas</p>
           <TrendChartWithToggle data={durationTrend} color="#38bdf8" gradientId="sleepDurGrad" unit="h" height={200} />
         </div>
       </div>
@@ -141,7 +141,7 @@ export default async function SleepPage() {
       {/* Sleep history */}
       {sleeps.length > 0 && (
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-4">Sleep History</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-4">Histórico de sono</h3>
           <div className="space-y-1">
             {sleeps.slice(0, 14).map((s: ApiRecord, i: number) => {
               const perf = s.performance_score ? Math.round(Number(s.performance_score)) : null;

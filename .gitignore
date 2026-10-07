@@ -15,6 +15,7 @@ go.work.sum
 # Go test/build artifacts
 *.out
 coverage.html
+web/tsconfig.tsbuildinfo
 
 # Database (dev compose bind mount)
 data/

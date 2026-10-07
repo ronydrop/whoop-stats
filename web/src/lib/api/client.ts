@@ -33,11 +33,11 @@ let tokenExpiry = 0;
 async function generateToken(): Promise<string> {
   const key = getRequiredEnv(
     "WHOOP_STATS_ENCRYPTION_KEY",
-    "Must match the backend's ENCRYPTION_KEY."
+    "Deve corresponder à ENCRYPTION_KEY do servidor."
   );
   const userId = getRequiredEnv(
     "WHOOP_STATS_WHOOP_USER_ID",
-    "Set it to your WHOOP user ID."
+    "Informe seu identificador de usuário WHOOP."
   );
 
   const secret = new TextEncoder().encode(key);

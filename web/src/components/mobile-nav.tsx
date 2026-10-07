@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
 import { LayoutDashboard, HeartPulse, Moon, Flame, Dumbbell } from "lucide-react";
 
 const tabs = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/recovery", label: "Recovery", icon: HeartPulse },
-  { href: "/sleep", label: "Sleep", icon: Moon },
-  { href: "/strain", label: "Strain", icon: Flame },
-  { href: "/workouts", label: "Workouts", icon: Dumbbell },
+  { href: "/", label: "Visão geral", icon: LayoutDashboard },
+  { href: "/recovery", label: "Recuperação", icon: HeartPulse },
+  { href: "/sleep", label: "Sono", icon: Moon },
+  { href: "/strain", label: "Esforço", icon: Flame },
+  { href: "/workouts", label: "Treinos", icon: Dumbbell },
 ];
 
 export function MobileNav() {

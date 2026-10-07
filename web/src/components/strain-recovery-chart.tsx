@@ -12,7 +12,8 @@ import {
   TooltipProps,
   ReferenceDot,
 } from "recharts";
-import { formatShortDate } from "@/lib/format";
+import { formatNumber, formatShortDate } from "@/lib/format";
+import { sportLabel } from "@/lib/sports";
 
 interface DataPoint {
   date: string;
@@ -35,11 +36,11 @@ function CustomTooltip({ active, payload, label }: TooltipProps<number, string>)
           <div key={i} className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="text-xs text-text-secondary capitalize">{String(entry.dataKey)}</span>
+              <span className="text-xs text-text-secondary">{isStrain ? "Esforço" : "Recuperação"}</span>
             </div>
             <span className="text-xs font-semibold text-text-primary">
               {entry.value != null
-                ? Number(entry.value).toFixed(isStrain ? 1 : 0) + (isStrain ? "" : "%")
+                ? formatNumber(Number(entry.value), isStrain ? 1 : 0) + (isStrain ? "" : "%")
                 : "--"}
             </span>
           </div>
@@ -48,7 +49,7 @@ function CustomTooltip({ active, payload, label }: TooltipProps<number, string>)
       {dataPayload?.hasWorkout && (
         <div className="mt-1.5 pt-1.5 border-t border-border-subtle flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-orange-400" />
-          <span className="text-[10px] text-orange-300">{dataPayload.workoutName || "Workout"}</span>
+          <span className="text-[10px] text-orange-300">{sportLabel(dataPayload.workoutName || "Treino")}</span>
         </div>
       )}
     </div>
@@ -64,7 +65,7 @@ export function StrainRecoveryChart({ data }: { data: DataPoint[] }) {
   if (!formattedData.length) {
     return (
       <div className="flex items-center justify-center h-[300px] text-text-muted text-sm">
-        No trend data available yet
+        Ainda não há dados para mostrar tendências
       </div>
     );
   }

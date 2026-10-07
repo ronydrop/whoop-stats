@@ -3,6 +3,10 @@
  */
 
 /** Convert milliseconds to a human-readable duration like "6h 32m" */
+export function formatNumber(value: number, digits = 0): string {
+  return value.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
 export function formatDuration(ms: number): string {
   if (!ms || ms <= 0) return "--";
   const hours = Math.floor(ms / (1000 * 60 * 60));
@@ -13,17 +17,17 @@ export function formatDuration(ms: number): string {
 
 /** Format a timestamp to "Mon DD" like "Mar 10" */
 export function formatShortDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return new Date(dateStr).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short", day: "numeric" });
 }
 
 /** Format a timestamp to "Mon DD, YYYY" */
 export function formatFullDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return new Date(dateStr).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short", day: "numeric", year: "numeric" });
 }
 
 /** Format a timestamp to "h:mm a" like "7:30 AM" */
 export function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return new Date(dateStr).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "numeric", minute: "2-digit" });
 }
 
 /** Get recovery color class based on score (green/yellow/red) */
@@ -42,16 +46,16 @@ export function getRecoveryColorValue(score: number): string {
 
 /** Get recovery text */
 export function getRecoveryLabel(score: number): string {
-  if (score >= 66) return "Primed to perform";
-  if (score >= 34) return "Moderate readiness";
-  return "Take it easy";
+  if (score >= 66) return "Pronto para atividades";
+  if (score >= 34) return "Disposição moderada";
+  return "Pegue leve";
 }
 
 /** Format distance in meters to km or mi */
 export function formatDistance(meters: number): string {
   if (!meters || meters <= 0) return "--";
   const km = meters / 1000;
-  if (km >= 1) return `${km.toFixed(1)} km`;
+  if (km >= 1) return `${km.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
   return `${Math.round(meters)} m`;
 }
 
@@ -59,7 +63,7 @@ export function formatDistance(meters: number): string {
 export function formatCalories(kj: number): string {
   if (!kj) return "--";
   const cal = Math.round(kj * 0.239006);
-  return `${cal.toLocaleString()} Cal`;
+  return `${cal.toLocaleString("pt-BR")} Cal`;
 }
 
 /** Get raw calorie number from kJ */
@@ -77,4 +81,4 @@ export const HR_ZONE_COLORS = [
   "var(--color-zone-5)",
 ] as const;
 
-export const HR_ZONE_LABELS = ["Zone 0", "Zone 1", "Zone 2", "Zone 3", "Zone 4", "Zone 5"] as const;
+export const HR_ZONE_LABELS = ["Zona 0", "Zona 1", "Zona 2", "Zona 3", "Zona 4", "Zona 5"] as const;

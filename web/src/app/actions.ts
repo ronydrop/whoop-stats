@@ -12,7 +12,7 @@ export async function syncWhoopData() {
   const { data, error, response } = await client.POST("/api/v1/sync");
 
   if (error || !response.ok) {
-    throw new Error(error?.error?.message || "Failed to trigger sync");
+    throw new Error(error?.error?.message || "Não foi possível iniciar a sincronização");
   }
 
   // Revalidate all dashboard routes to reflect fresh data

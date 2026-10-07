@@ -1,7 +1,10 @@
 "use client";
 
+import { sportLabel } from "@/lib/sports";
+
+
 import { cn } from "@/lib/utils";
-import { formatDuration, formatCalories, HR_ZONE_COLORS } from "@/lib/format";
+import { formatNumber, formatDuration, formatCalories, HR_ZONE_COLORS } from "@/lib/format";
 import { Flame, Clock } from "lucide-react";
 
 interface WorkoutCardProps {
@@ -41,14 +44,14 @@ export function WorkoutCard({
     >
       <div className="flex items-start justify-between">
         <div>
-          <h4 className="text-sm font-semibold text-text-primary">{sportName || "Activity"}</h4>
+          <h4 className="text-sm font-semibold text-text-primary">{sportLabel(sportName || "Atividade")}</h4>
           <p className="text-xs text-text-tertiary mt-0.5">
-            {start.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+            {start.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "short", month: "short", day: "numeric" })}
           </p>
         </div>
         <div className="flex items-center gap-1 text-xs font-medium text-strain">
           <Flame className="w-3.5 h-3.5" />
-          {strain ? strain.toFixed(1) : "--"}
+          {strain ? formatNumber(strain, 1) : "--"}
         </div>
       </div>
 
@@ -61,8 +64,8 @@ export function WorkoutCard({
           </span>
         )}
         <span>{formatCalories(kilojoule)}</span>
-        {averageHeartRate ? <span>Avg {averageHeartRate} bpm</span> : null}
-        {maxHeartRate ? <span>Max {maxHeartRate} bpm</span> : null}
+        {averageHeartRate ? <span>Média {averageHeartRate} bpm</span> : null}
+        {maxHeartRate ? <span>Máxima {maxHeartRate} bpm</span> : null}
       </div>
 
       {/* HR Zones mini bar */}

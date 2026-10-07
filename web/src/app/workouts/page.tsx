@@ -15,10 +15,10 @@ export default async function WorkoutsPage() {
     <div className="px-4 md:px-8 lg:px-10 py-6 md:py-8 max-w-7xl mx-auto space-y-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
-          Workouts
+          Treinos
         </h1>
         <p className="text-sm text-text-tertiary mt-0.5">
-          {workouts.length} activities logged
+          {workouts.length} atividades registradas
         </p>
       </header>
 

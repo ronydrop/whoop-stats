@@ -1,7 +1,7 @@
 import { client } from "@/lib/api/client";
 import { RecoveryGauge } from "@/components/recovery-gauge";
 import { TrendChartWithToggle } from "@/components/trend-chart";
-import { getRecoveryLabel, formatFullDate } from "@/lib/format";
+import { formatNumber, getRecoveryLabel, formatFullDate } from "@/lib/format";
 import { RecoveryPanels } from "@/components/recovery-panels";
 import { computeAvg, computeStdDev } from "@/lib/stats";
 import type { ApiRecord } from "@/lib/types";
@@ -102,8 +102,8 @@ export default async function RecoveryPage() {
   return (
     <div className="px-4 md:px-8 lg:px-10 py-6 md:py-8 max-w-7xl mx-auto space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Recovery</h1>
-        <p className="text-sm text-text-tertiary mt-0.5">Track your body&apos;s readiness to perform</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Recuperação</h1>
+        <p className="text-sm text-text-tertiary mt-0.5">Acompanhe a disposição do seu corpo para atividades</p>
       </header>
 
       {/* Top section: Gauge + Stats */}
@@ -115,7 +115,7 @@ export default async function RecoveryPage() {
           )}
           {recoveryDelta != null && (
             <p className="text-xs text-text-muted mt-1">
-              {recoveryDelta > 0 ? "+" : ""}{recoveryDelta}% from yesterday
+              {recoveryDelta > 0 ? "+" : ""}{recoveryDelta}% desde ontem
             </p>
           )}
         </div>
@@ -129,7 +129,7 @@ export default async function RecoveryPage() {
       {/* Recovery Distribution — own row */}
       <div className="glass-card p-5">
         <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
-          Recovery Distribution ({panelData.totalDays} days)
+          Distribuição da recuperação ({panelData.totalDays} dias)
         </h3>
         <div className="flex items-center gap-1.5 h-4 rounded-full overflow-hidden">
           {greenDays > 0 && (
@@ -143,37 +143,37 @@ export default async function RecoveryPage() {
           )}
         </div>
         <div className="flex justify-between mt-3 text-xs">
-          <span className="text-emerald-400 font-medium">{greenDays} green ({recoveryScores.length ? Math.round(greenDays / recoveryScores.length * 100) : 0}%)</span>
-          <span className="text-amber-400 font-medium">{yellowDays} yellow ({recoveryScores.length ? Math.round(yellowDays / recoveryScores.length * 100) : 0}%)</span>
-          <span className="text-rose-400 font-medium">{redDays} red ({recoveryScores.length ? Math.round(redDays / recoveryScores.length * 100) : 0}%)</span>
+          <span className="text-emerald-400 font-medium">{greenDays} verdes ({recoveryScores.length ? Math.round(greenDays / recoveryScores.length * 100) : 0}%)</span>
+          <span className="text-amber-400 font-medium">{yellowDays} amarelos ({recoveryScores.length ? Math.round(yellowDays / recoveryScores.length * 100) : 0}%)</span>
+          <span className="text-rose-400 font-medium">{redDays} vermelhos ({recoveryScores.length ? Math.round(redDays / recoveryScores.length * 100) : 0}%)</span>
         </div>
       </div>
 
       {/* Trend charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">HRV Trend</h3>
-          <p className="text-xs text-text-tertiary mb-3">RMSSD in milliseconds</p>
+          <h3 className="text-sm font-semibold text-text-primary mb-1">Tendência da VFC</h3>
+          <p className="text-xs text-text-tertiary mb-3">RMSSD em milissegundos</p>
           <TrendChartWithToggle data={hrvTrend} color="var(--color-recovery-green)" gradientId="hrvGrad" unit=" ms" height={200} />
         </div>
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">Resting Heart Rate</h3>
-          <p className="text-xs text-text-tertiary mb-3">Beats per minute (lower is better)</p>
+          <h3 className="text-sm font-semibold text-text-primary mb-1">Frequência cardíaca em repouso</h3>
+          <p className="text-xs text-text-tertiary mb-3">Batimentos por minuto (valores menores são melhores)</p>
           <TrendChartWithToggle data={rhrTrend} color="var(--color-strain)" gradientId="rhrGrad" unit=" bpm" height={200} />
         </div>
       </div>
 
       {/* Recovery score trend */}
       <div className="glass-card p-5">
-        <h3 className="text-sm font-semibold text-text-primary mb-1">Recovery Score</h3>
-        <p className="text-xs text-text-tertiary mb-3">Daily recovery percentage</p>
+        <h3 className="text-sm font-semibold text-text-primary mb-1">Pontuação de recuperação</h3>
+        <p className="text-xs text-text-tertiary mb-3">Porcentagem diária de recuperação</p>
         <TrendChartWithToggle data={recoveryTrend} color="var(--color-recovery-green)" gradientId="recGrad" unit="%" domain={[0, 100]} height={220} />
       </div>
 
       {/* Recovery history list */}
       {recoveries.length > 0 && (
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-4">Recovery History</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-4">Histórico de recuperação</h3>
           <div className="space-y-1">
             {recoveries.slice(0, 14).map((rec: ApiRecord, i: number) => {
               const score = rec.recovery_score ? Math.round(Number(rec.recovery_score)) : null;
@@ -185,8 +185,8 @@ export default async function RecoveryPage() {
                   <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
                   <span className="text-sm text-text-secondary flex-1">{formatFullDate(rec.start_time)}</span>
                   <span className="text-sm font-medium text-text-primary">{score ? `${score}%` : "--"}</span>
-                  <span className="text-xs text-text-muted w-16 text-right">{rec.hrv_rmssd_milli ? `${Number(rec.hrv_rmssd_milli).toFixed(0)} ms` : "--"}</span>
-                  <span className="text-xs text-text-muted w-16 text-right">{rec.resting_heart_rate ? `${Number(rec.resting_heart_rate).toFixed(0)} bpm` : "--"}</span>
+                  <span className="text-xs text-text-muted w-16 text-right">{rec.hrv_rmssd_milli ? `${formatNumber(Number(rec.hrv_rmssd_milli), 0)} ms` : "--"}</span>
+                  <span className="text-xs text-text-muted w-16 text-right">{rec.resting_heart_rate ? `${formatNumber(Number(rec.resting_heart_rate), 0)} bpm` : "--"}</span>
                 </div>
               );
             })}

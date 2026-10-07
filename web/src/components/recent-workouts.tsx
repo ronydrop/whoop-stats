@@ -16,7 +16,7 @@ export function RecentWorkouts({ workouts }: { workouts: AnyRecord[] }) {
         {workouts.map((w, i) => (
           <div key={i} onClick={() => setDetailWorkout(w)} className="cursor-pointer">
             <WorkoutCard
-              sportName={w.sport_name || "Activity"}
+              sportName={w.sport_name || "Atividade"}
               strain={Number(w.strain || 0)}
               kilojoule={Number(w.kilojoule || 0)}
               startTime={w.start_time}

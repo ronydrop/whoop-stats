@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Dumbbell,
 } from "lucide-react";
-import {
+import { formatNumber,
   formatDuration,
   formatCalories,
   getRecoveryColor,
@@ -50,11 +50,11 @@ export default async function DashboardPage() {
 
   // Strain
   const currentStrain = latestCycle?.strain
-    ? Number(latestCycle.strain).toFixed(1)
+    ? formatNumber(Number(latestCycle.strain), 1)
     : "--";
   const kilojoules = latestCycle?.kilojoule
     ? formatCalories(Number(latestCycle.kilojoule))
-    : "No data";
+    : "Sem dados";
 
   // Recovery
   const recoveryScore = latestRecovery?.recovery_score
@@ -63,10 +63,10 @@ export default async function DashboardPage() {
   const recoveryColorName = recoveryScore ? getRecoveryColor(recoveryScore) : "none";
   const recoverySubtext = recoveryScore ? getRecoveryLabel(recoveryScore) : "--";
   const hrv = latestRecovery?.hrv_rmssd_milli
-    ? Number(latestRecovery.hrv_rmssd_milli).toFixed(0)
+    ? formatNumber(Number(latestRecovery.hrv_rmssd_milli), 0)
     : null;
   const rhr = latestRecovery?.resting_heart_rate
-    ? Number(latestRecovery.resting_heart_rate).toFixed(0)
+    ? formatNumber(Number(latestRecovery.resting_heart_rate), 0)
     : null;
 
   // Sleep
@@ -88,7 +88,7 @@ export default async function DashboardPage() {
   const workoutDates = new Map<string, string>();
   allWorkouts.forEach((w: ApiRecord) => {
     const dateKey = new Date(w.start_time).toISOString().slice(0, 10);
-    workoutDates.set(dateKey, w.sport_name || "Workout");
+    workoutDates.set(dateKey, w.sport_name || "Treino");
   });
 
   // Build recovery lookup by date
@@ -122,10 +122,10 @@ export default async function DashboardPage() {
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
-            Overview
+            Visão geral
           </h1>
           <p className="text-sm text-text-tertiary mt-0.5">
-            Welcome back
+            Olá novamente
             {profileRes.data?.first_name ? `, ${profileRes.data.first_name}` : ""}.
           </p>
         </div>
@@ -135,7 +135,7 @@ export default async function DashboardPage() {
       {/* Hero metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <MetricCard
-          title="Day Strain"
+          title="Esforço do dia"
           value={currentStrain}
           subtitle={
             <span className="flex items-center gap-1">
@@ -148,15 +148,15 @@ export default async function DashboardPage() {
         />
 
         <MetricCard
-          title="Recovery"
+          title="Recuperação"
           value={recoveryScore ? `${recoveryScore}%` : "--%"}
           subtitle={
             <div className="space-y-1">
               <div>{recoverySubtext}</div>
               {(hrv || rhr) && (
                 <div className="flex gap-3 text-xs text-text-muted">
-                  {hrv && <span>HRV {hrv} ms</span>}
-                  {rhr && <span>RHR {rhr} bpm</span>}
+                  {hrv && <span>VFC {hrv} ms</span>}
+                  {rhr && <span>FC em repouso {rhr} bpm</span>}
                 </div>
               )}
             </div>
@@ -166,9 +166,9 @@ export default async function DashboardPage() {
         />
 
         <MetricCard
-          title="Sleep Performance"
+          title="Desempenho do sono"
           value={sleepPerf ? `${sleepPerf}%` : "--%"}
-          subtitle={totalSleepMs > 0 ? formatDuration(totalSleepMs) + " actual sleep" : "No data"}
+          subtitle={totalSleepMs > 0 ? formatDuration(totalSleepMs) + " de sono efetivo" : "Sem dados"}
           icon={<Moon className="w-4 h-4" />}
           accentColor="violet"
         >
@@ -182,7 +182,7 @@ export default async function DashboardPage() {
       {recoveries.length > 0 && (
         <div className="glass-card p-4">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
-            7-Day Recovery
+            Recuperação em 7 dias
           </h3>
           <div className="flex items-center gap-1.5">
             {recoveries
@@ -204,7 +204,7 @@ export default async function DashboardPage() {
                     <div
                       className={`w-full h-8 rounded-md ${color} transition-all`}
                       style={{ opacity: score ? 0.3 + (score / 100) * 0.7 : 0.2 }}
-                      title={score ? `${score}%` : "No data"}
+                      title={score ? `${score}%` : "Sem dados"}
                     />
                     <span className="text-[10px] text-text-muted">
                       {score ? `${score}%` : "--"}
@@ -220,8 +220,8 @@ export default async function DashboardPage() {
       <div className="glass-card p-5 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-sm font-semibold text-text-primary">30-Day Trends</h2>
-            <p className="text-xs text-text-tertiary mt-0.5">Strain vs Recovery</p>
+            <h2 className="text-sm font-semibold text-text-primary">Tendências em 30 dias</h2>
+            <p className="text-xs text-text-tertiary mt-0.5">Esforço e recuperação</p>
           </div>
           <TrendingUp className="w-4 h-4 text-text-muted" />
         </div>
@@ -240,7 +240,7 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
               <Dumbbell className="w-4 h-4 text-text-tertiary" />
-              Recent Workouts
+              Treinos recentes
             </h2>
           </div>
           <RecentWorkouts workouts={workouts} />

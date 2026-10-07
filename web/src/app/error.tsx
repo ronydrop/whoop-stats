@@ -24,17 +24,16 @@ export default function Error({
           <span className="text-rose-400 text-xl">!</span>
         </div>
         <h2 className="text-lg font-semibold text-text-primary">
-          Something went wrong
+          Ocorreu um problema
         </h2>
         <p className="text-sm text-text-secondary max-w-md mx-auto">
-          Failed to load data from the WHOOP Stats backend. Make sure the backend
-          service is running and your environment variables are configured correctly.
+          Não foi possível carregar seus dados. Abra o painel pelo atalho WHOOP em Português e tente novamente.
         </p>
         <button
           onClick={reset}
           className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
         >
-          Try Again
+          Tentar novamente
         </button>
       </div>
     </div>

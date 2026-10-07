@@ -1,4 +1,26 @@
-# WHOOP Stats
+# WHOOP em Português
+
+Fork pessoal de [arvarik/whoop-stats](https://github.com/arvarik/whoop-stats), com interface em português brasileiro e execução local no Windows.
+
+## Uso no Windows
+
+- Abra **Iniciar WHOOP.cmd**, ou o atalho **WHOOP em Português** na área de trabalho. O inicializador abre o banco exclusivo deste painel, o servidor e a interface em segundo plano.
+- Acesse **http://localhost:3032**. As páginas mostram visão geral, recuperação, sono, esforço e treinos. O idioma permanece em português; datas usam o fuso de São Paulo e números usam vírgula decimal.
+- Use **Sincronizar** para solicitar uma atualização. A primeira importação de um histórico longo pode levar alguns minutos.
+- Abra **Parar WHOOP.cmd** para encerrar os processos deste painel e seu banco.
+- **Conectar WHOOP.cmd** inicia a autorização quando as credenciais do aplicativo WHOOP estiverem configuradas no arquivo `.env`. Feche o painel antes de renovar a conexão.
+
+Esta instalação usa Node.js, o servidor Go compilado e um banco PostgreSQL próprio na porta **55439**. Não depende de Docker nem do WSL. O banco não usa os bancos existentes do PostgreSQL instalado.
+
+Credenciais, tokens, banco, executáveis e dependências locais ficam fora do Git. A [política de privacidade](PRIVACIDADE.md) descreve a conexão e o armazenamento local.
+
+## Desenvolvimento
+
+Na pasta `web`, execute `npm ci --legacy-peer-deps`, `npm test` e `npm run build`. Compile os executáveis com `go build -p 2 -o bin/whoop-stats.exe ./cmd/server` e `go build -p 2 -o bin/whoop-auth.exe ./cmd/auth`. O PostgreSQL usa o esquema em `migrations/000001_init_schema.up.sql`, com views nativas atualizadas em cada consulta.
+
+As instruções abaixo são a documentação original do projeto de origem.
+
+# WHOOP Stats — documentação original
 
 A premium, high-performance, open-source dashboard and ingestion engine for your WHOOP fitness data. Built for homelabs, NAS devices, and cloud deployments.
 

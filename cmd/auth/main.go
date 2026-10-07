@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -86,10 +88,17 @@ func runAuthFlow(clientID, clientSecret string) {
 		"read:body_measurement",
 	}
 
-	authURL := fmt.Sprintf("https://api.prod.whoop.com/oauth/oauth2/auth?client_id=%s&response_type=code&redirect_uri=%s&scope=%s&state=whoop-stats-state",
+	stateBytes := make([]byte, 24)
+	if _, err := rand.Read(stateBytes); err != nil {
+		slog.Error("Não foi possível iniciar a autorização", "error", err)
+		os.Exit(1)
+	}
+	state := base64.RawURLEncoding.EncodeToString(stateBytes)
+	authURL := fmt.Sprintf("https://api.prod.whoop.com/oauth/oauth2/auth?client_id=%s&response_type=code&redirect_uri=%s&scope=%s&state=%s",
 		clientID,
 		url.QueryEscape(redirectURI),
 		url.QueryEscape(strings.Join(scopes, " ")),
+		url.QueryEscape(state),
 	)
 
 	slog.Info("=== WHOOP OAuth 2.0 Token Generator ===")
@@ -97,9 +106,13 @@ func runAuthFlow(clientID, clientSecret string) {
 	slog.Info("Open this URL in your browser to authorize", "auth_url", authURL)
 	slog.Info("Waiting for authorization callback", "port", port)
 
-	server := &http.Server{Addr: ":" + port}
+	server := &http.Server{Addr: "127.0.0.1:" + port, ReadHeaderTimeout: 10 * time.Second}
 
 	http.HandleFunc(u.Path, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("state") != state {
+			http.Error(w, "Autorização inválida. Reinicie a conexão com a WHOOP.", http.StatusBadRequest)
+			return
+		}
 		// Check for OAuth error response from WHOOP.
 		if errParam := r.URL.Query().Get("error"); errParam != "" {
 			desc := r.URL.Query().Get("error_description")
@@ -140,7 +153,8 @@ func runAuthFlow(clientID, clientSecret string) {
 		saveToken(tok)
 		printSuccess(tok)
 
-		_, _ = fmt.Fprintf(w, "Success! You can close this window and check your terminal.")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = fmt.Fprintf(w, "<!doctype html><html lang=\"pt-BR\"><meta charset=\"utf-8\"><title>WHOOP conectada</title><h1>WHOOP conectada com sucesso</h1><p>Você já pode fechar esta janela e abrir o painel pelo atalho WHOOP em Português.</p></html>")
 
 		go func() {
 			time.Sleep(1 * time.Second)
@@ -227,7 +241,7 @@ type whoopProfile struct {
 
 // fetchUserProfile calls the WHOOP API to get the authenticated user's profile.
 func fetchUserProfile(accessToken string) (*whoopProfile, error) {
-	req, err := http.NewRequest(http.MethodGet, "https://api.prod.whoop.com/developer/v1/user/profile/basic", nil)
+	req, err := http.NewRequest(http.MethodGet, "https://api.prod.whoop.com/developer/v2/user/profile/basic", nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating profile request: %w", err)
 	}

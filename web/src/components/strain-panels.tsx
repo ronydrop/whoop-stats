@@ -1,9 +1,12 @@
 "use client";
 
+import { sportLabel } from "@/lib/sports";
+
+
 import { MetricCard } from "@/components/metric-card";
 import { DetailPopup, DetailRow, useDetailPopup } from "@/components/detail-popup";
 import { Flame, Zap, Heart, Activity, Dumbbell } from "lucide-react";
-import { formatCalories, formatDuration, kjToCal } from "@/lib/format";
+import { formatNumber, formatCalories, formatDuration, kjToCal } from "@/lib/format";
 
 interface StrainPanelData {
   strain: number | null;
@@ -36,33 +39,33 @@ export function StrainPanels({ data: d }: { data: StrainPanelData }) {
       {/* Hero stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <MetricCard
-          title="Today's Strain"
-          value={d.strain ? d.strain.toFixed(1) : "--"}
+          title="Esforço de hoje"
+          value={d.strain ? formatNumber(d.strain, 1) : "--"}
           subtitle={d.kj ? formatCalories(d.kj) : undefined}
           icon={<Activity className="w-4 h-4" />}
           accentColor="blue"
           onClick={() => open("strain")}
         />
         <MetricCard
-          title="7-Day Total"
-          value={d.weekStrain.toFixed(1)}
+          title="Total de 7 dias"
+          value={formatNumber(d.weekStrain, 1)}
           subtitle={formatCalories(d.weekKJ)}
           icon={<Flame className="w-4 h-4" />}
           accentColor="yellow"
           onClick={() => open("weekly")}
         />
         <MetricCard
-          title="Avg Heart Rate"
+          title="FC média"
           value={d.avgHR ? `${d.avgHR} bpm` : "--"}
-          subtitle="Today's average"
+          subtitle="Média de hoje"
           icon={<Heart className="w-4 h-4" />}
           accentColor="red"
           onClick={() => open("hr")}
         />
         <MetricCard
-          title="Max Heart Rate"
+          title="FC máxima"
           value={d.maxHR ? `${d.maxHR} bpm` : "--"}
-          subtitle="Today's peak"
+          subtitle="Pico de hoje"
           icon={<Zap className="w-4 h-4" />}
           accentColor="green"
           onClick={() => open("hr")}
@@ -72,29 +75,29 @@ export function StrainPanels({ data: d }: { data: StrainPanelData }) {
       {/* Derived metrics */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
         <MetricCard
-          title="Avg Daily Strain"
-          value={d.avgDailyStrain ? d.avgDailyStrain.toFixed(1) : "--"}
-          subtitle={`${d.totalDays}-day average`}
+          title="Esforço diário médio"
+          value={d.avgDailyStrain ? formatNumber(d.avgDailyStrain, 1) : "--"}
+          subtitle={`${d.totalDays} dias de média`}
           onClick={() => open("averages")}
         />
         <MetricCard
-          title="Peak Strain"
-          value={d.peakStrain ? d.peakStrain.toFixed(1) : "--"}
-          subtitle="Highest day"
+          title="Pico de esforço"
+          value={d.peakStrain ? formatNumber(d.peakStrain, 1) : "--"}
+          subtitle="Maior valor diário"
           accentColor="blue"
           onClick={() => open("averages")}
         />
         <MetricCard
-          title="Total Calories"
-          value={d.totalCal.toLocaleString()}
-          subtitle={`${d.totalDays} days tracked`}
+          title="Calorias totais"
+          value={d.totalCal.toLocaleString("pt-BR")}
+          subtitle={`${d.totalDays} dias registrados`}
           icon={<Flame className="w-4 h-4" />}
           onClick={() => open("calories")}
         />
         <MetricCard
-          title="High Strain Days"
+          title="Dias de esforço intenso"
           value={d.highStrainDays}
-          subtitle={`≥14.0 strain (${d.workoutCount} workouts)`}
+          subtitle={`esforço ≥ 14,0 (${d.workoutCount} treinos)`}
           icon={<Dumbbell className="w-4 h-4" />}
           onClick={() => open("sports")}
         />
@@ -102,26 +105,26 @@ export function StrainPanels({ data: d }: { data: StrainPanelData }) {
 
       {/* Today Strain Detail */}
       {popup === "strain" && (
-        <DetailPopup title="Strain Score" onClose={close}>
+        <DetailPopup title="Pontuação de esforço" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            Strain measures the cardiovascular load your body accumulated throughout the day. Scale ranges from 0 to 21, with 21 being maximal effort.
+            O esforço mede a carga cardiovascular acumulada durante o dia. A escala vai de 0 a 21, sendo 21 o esforço máximo.
           </p>
-          <DetailRow label="Current Strain" value={d.strain ? d.strain.toFixed(1) : "--"} />
-          <DetailRow label="Calories Burned" value={d.kj ? formatCalories(d.kj) : "--"} />
+          <DetailRow label="Esforço atual" value={d.strain ? formatNumber(d.strain, 1) : "--"} />
+          <DetailRow label="Calorias gastas" value={d.kj ? formatCalories(d.kj) : "--"} />
           {d.strainDelta != null && (
-            <DetailRow label="vs Yesterday" value={`${d.strainDelta > 0 ? "+" : ""}${d.strainDelta.toFixed(1)}`} />
+            <DetailRow label="em relação a ontem" value={`${d.strainDelta > 0 ? "+" : ""}${formatNumber(d.strainDelta, 1)}`} />
           )}
-          <DetailRow label="Average HR" value={d.avgHR ? `${d.avgHR} bpm` : "--"} />
-          <DetailRow label="Max HR" value={d.maxHR ? `${d.maxHR} bpm` : "--"} />
+          <DetailRow label="FC média" value={d.avgHR ? `${d.avgHR} bpm` : "--"} />
+          <DetailRow label="FC máxima" value={d.maxHR ? `${d.maxHR} bpm` : "--"} />
           <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
             <p className="text-xs text-text-secondary">
               {d.strain && d.strain >= 14
-                ? "High strain day — consider a lighter day tomorrow for recovery."
+                ? "Dia de esforço intenso — considere um dia mais leve amanhã para se recuperar."
                 : d.strain && d.strain >= 10
-                  ? "Moderate strain — good training stimulus."
+                  ? "Esforço moderado — bom estímulo de treino."
                   : d.strain && d.strain >= 5
-                    ? "Light activity day — good for active recovery."
-                    : "Rest day — focus on sleep and nutrition."}
+                    ? "Dia de atividade leve — favorável à recuperação ativa."
+                    : "Dia de descanso — priorize o sono e a alimentação."}
             </p>
           </div>
         </DetailPopup>
@@ -129,71 +132,71 @@ export function StrainPanels({ data: d }: { data: StrainPanelData }) {
 
       {/* Weekly Detail */}
       {popup === "weekly" && (
-        <DetailPopup title="7-Day Summary" onClose={close}>
-          <DetailRow label="Total Strain" value={d.weekStrain.toFixed(1)} />
-          <DetailRow label="Avg Daily Strain" value={d.weekAvgDailyStrain ? d.weekAvgDailyStrain.toFixed(1) : "--"} />
-          <DetailRow label="Total Calories" value={`${kjToCal(d.weekKJ).toLocaleString()} Cal`} />
-          <DetailRow label="Avg Daily Calories" value={d.weekKJ ? `${Math.round(kjToCal(d.weekKJ) / 7).toLocaleString()} Cal` : "--"} />
+        <DetailPopup title="Resumo de 7 dias" onClose={close}>
+          <DetailRow label="Esforço total" value={formatNumber(d.weekStrain, 1)} />
+          <DetailRow label="Esforço diário médio" value={d.weekAvgDailyStrain ? formatNumber(d.weekAvgDailyStrain, 1) : "--"} />
+          <DetailRow label="Calorias totais" value={`${kjToCal(d.weekKJ).toLocaleString("pt-BR")} Cal`} />
+          <DetailRow label="Média diária de calorias" value={d.weekKJ ? `${Math.round(kjToCal(d.weekKJ) / 7).toLocaleString("pt-BR")} Cal` : "--"} />
         </DetailPopup>
       )}
 
       {/* HR Detail */}
       {popup === "hr" && (
-        <DetailPopup title="Heart Rate Analysis" onClose={close}>
+        <DetailPopup title="Análise de frequência cardíaca" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            Heart rate data from today&apos;s cycle. Higher average HR during activity indicates greater cardiovascular load.
+            Dados de frequência cardíaca do ciclo de hoje. Uma FC média maior durante a atividade indica maior carga cardiovascular.
           </p>
-          <DetailRow label="Average HR" value={d.avgHR ? `${d.avgHR} bpm` : "--"} />
-          <DetailRow label="Max HR" value={d.maxHR ? `${d.maxHR} bpm` : "--"} />
-          <DetailRow label="Today's Strain" value={d.strain ? d.strain.toFixed(1) : "--"} />
-          <DetailRow label="Calories" value={d.kj ? formatCalories(d.kj) : "--"} />
+          <DetailRow label="FC média" value={d.avgHR ? `${d.avgHR} bpm` : "--"} />
+          <DetailRow label="FC máxima" value={d.maxHR ? `${d.maxHR} bpm` : "--"} />
+          <DetailRow label="Esforço de hoje" value={d.strain ? formatNumber(d.strain, 1) : "--"} />
+          <DetailRow label="Calorias" value={d.kj ? formatCalories(d.kj) : "--"} />
         </DetailPopup>
       )}
 
       {/* Averages Detail */}
       {popup === "averages" && (
-        <DetailPopup title="Strain Averages" onClose={close}>
-          <DetailRow label="Daily Average" value={d.avgDailyStrain ? d.avgDailyStrain.toFixed(1) : "--"} />
-          <DetailRow label="Peak Strain" value={d.peakStrain ? d.peakStrain.toFixed(1) : "--"} hint="Highest single-day strain" />
-          <DetailRow label="High Strain Days" value={`${d.highStrainDays} (${d.totalDays ? Math.round(d.highStrainDays / d.totalDays * 100) : 0}%)`} hint="Days ≥ 14.0" />
-          <DetailRow label="Total Workouts" value={d.workoutCount} />
+        <DetailPopup title="Médias de esforço" onClose={close}>
+          <DetailRow label="Média diária" value={d.avgDailyStrain ? formatNumber(d.avgDailyStrain, 1) : "--"} />
+          <DetailRow label="Pico de esforço" value={d.peakStrain ? formatNumber(d.peakStrain, 1) : "--"} hint="Maior esforço em um único dia" />
+          <DetailRow label="Dias de esforço intenso" value={`${d.highStrainDays} (${d.totalDays ? Math.round(d.highStrainDays / d.totalDays * 100) : 0}%)`} hint="Dias com esforço ≥ 14,0" />
+          <DetailRow label="Total de treinos" value={d.workoutCount} />
           {d.avgWorkoutStrain != null && (
-            <DetailRow label="Avg Workout Strain" value={d.avgWorkoutStrain.toFixed(1)} />
+            <DetailRow label="Esforço médio dos treinos" value={formatNumber(d.avgWorkoutStrain, 1)} />
           )}
           {d.avgWorkoutDurationMs != null && (
-            <DetailRow label="Avg Workout Duration" value={formatDuration(d.avgWorkoutDurationMs)} />
+            <DetailRow label="Duração média dos treinos" value={formatDuration(d.avgWorkoutDurationMs)} />
           )}
-          <DetailRow label="Total Workout Time" value={d.totalWorkoutDurationMs > 0 ? formatDuration(d.totalWorkoutDurationMs) : "--"} />
+          <DetailRow label="Tempo total de treinos" value={d.totalWorkoutDurationMs > 0 ? formatDuration(d.totalWorkoutDurationMs) : "--"} />
         </DetailPopup>
       )}
 
       {/* Calories Detail */}
       {popup === "calories" && (
-        <DetailPopup title="Calorie Analysis" onClose={close}>
-          <DetailRow label="Total Calories" value={`${d.totalCal.toLocaleString()} Cal`} />
-          <DetailRow label="Daily Average" value={d.avgDailyCal ? `${Math.round(d.avgDailyCal).toLocaleString()} Cal` : "--"} />
-          <DetailRow label="Days Tracked" value={d.totalDays} />
-          <DetailRow label="7-Day Total" value={`${kjToCal(d.weekKJ).toLocaleString()} Cal`} />
+        <DetailPopup title="Análise de calorias" onClose={close}>
+          <DetailRow label="Calorias totais" value={`${d.totalCal.toLocaleString("pt-BR")} Cal`} />
+          <DetailRow label="Média diária" value={d.avgDailyCal ? `${Math.round(d.avgDailyCal).toLocaleString("pt-BR")} Cal` : "--"} />
+          <DetailRow label="Dias registrados" value={d.totalDays} />
+          <DetailRow label="Total de 7 dias" value={`${kjToCal(d.weekKJ).toLocaleString("pt-BR")} Cal`} />
         </DetailPopup>
       )}
 
       {/* Sport Breakdown Detail */}
       {popup === "sports" && d.sportBreakdown.length > 0 && (
-        <DetailPopup title="Activity Breakdown" onClose={close}>
+        <DetailPopup title="Distribuição de atividades" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            Performance by sport type across your dataset.
+            Desempenho por modalidade esportiva no período.
           </p>
           {d.sportBreakdown.map((s) => (
-            <div key={s.sport} className="flex items-center justify-between py-2 border-b border-border-subtle/30 last:border-0">
+            <div key={sportLabel(s.sport)} className="flex items-center justify-between py-2 border-b border-border-subtle/30 last:border-0">
               <div>
-                <span className="text-sm text-text-secondary capitalize">{s.sport}</span>
-                <p className="text-[10px] text-text-muted">{s.count} sessions · {s.totalCal.toLocaleString()} Cal</p>
+                <span className="text-sm text-text-secondary capitalize">{sportLabel(s.sport)}</span>
+                <p className="text-[10px] text-text-muted">{s.count} sessões · {s.totalCal.toLocaleString("pt-BR")} Cal</p>
               </div>
-              <span className="text-sm font-semibold text-text-primary">{s.avgStrain.toFixed(1)} avg</span>
+              <span className="text-sm font-semibold text-text-primary">{formatNumber(s.avgStrain, 1)} média</span>
             </div>
           ))}
-          <DetailRow label="Total Workouts" value={d.workoutCount} />
-          <DetailRow label="Total Time" value={d.totalWorkoutDurationMs > 0 ? formatDuration(d.totalWorkoutDurationMs) : "--"} />
+          <DetailRow label="Total de treinos" value={d.workoutCount} />
+          <DetailRow label="Tempo total" value={d.totalWorkoutDurationMs > 0 ? formatDuration(d.totalWorkoutDurationMs) : "--"} />
         </DetailPopup>
       )}
     </>
