@@ -4,9 +4,11 @@ import { StressClient } from "./stress-client";
 import { client } from "./api/client";
 import { historicalStressEnd, object } from "./stress";
 import { dateKey } from "./period";
+import { requireOwner } from "./auth-server";
 
 let instance: StressClient | undefined;
-export function stressClient(): StressClient {
+export async function stressClient(): Promise<StressClient> {
+  await requireOwner();
   instance ??= new StressClient({
     file: process.env.WHOOP_STRESS_STORE ?? resolve(process.cwd(), "../data/stress.enc"),
     secret: process.env.WHOOP_STATS_ENCRYPTION_KEY ?? "",

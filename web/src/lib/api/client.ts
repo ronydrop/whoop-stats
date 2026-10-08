@@ -12,6 +12,8 @@
 import createClient from "openapi-fetch";
 import type { paths } from "./schema";
 import { SignJWT } from "jose";
+import "server-only";
+import { requireOwner } from "../auth-server";
 
 // --- Lazy environment variable access ---
 // Next.js evaluates module-level code during `next build` (collecting page data).
@@ -63,6 +65,7 @@ async function getToken(): Promise<string> {
 export const client = createClient<paths>({
   baseUrl: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080",
   fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+    await requireOwner();
     // Validate at runtime (first actual API call), not at build time
     getRequiredEnv(
       "NEXT_PUBLIC_API_URL",

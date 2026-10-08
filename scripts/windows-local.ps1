@@ -101,7 +101,7 @@ function Iniciar-App($porta, $arquivo, $argumentos, $pasta, $nome, $url) {
 Iniciar-App 8085 (Join-Path $raiz 'bin\whoop-stats.exe') @('--mode=poll', "--user=$($config['WHOOP_USER_ID'])") $raiz 'servidor' 'http://127.0.0.1:8085/healthz'
 Iniciar-App 3032 $config['NODE_EXE'] @('node_modules\next\dist\bin\next', 'start', '-H', '127.0.0.1', '-p', '3032') (Join-Path $raiz 'web') 'painel' 'http://localhost:3032'
 if (!$SemAbrir) { Start-Process 'http://localhost:3032' }
-Write-Host 'WHOOP em Português disponível em http://localhost:3032'
+Write-Host 'WHOOP Metrics disponível em http://localhost:3032'
 
 } finally {
     if ($adquirido) { $mutex.ReleaseMutex() }

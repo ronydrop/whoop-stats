@@ -1,0 +1,25 @@
+[Unit]
+Description=API e sincronização do WHOOP
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=whoop-stats
+Group=whoop-stats
+WorkingDirectory=/var/www/whoop-stats/current
+EnvironmentFile=/var/www/whoop-stats/shared/runtime.env
+ExecStart=/var/www/whoop-stats/current/bin/whoop-stats -mode=poll -user=${WHOOP_USER_ID}
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/whoop-stats/shared
+MemoryMax=1G
+CPUQuota=100%
+
+[Install]
+WantedBy=multi-user.target

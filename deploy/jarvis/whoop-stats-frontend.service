@@ -1,0 +1,25 @@
+[Unit]
+Description=Painel pessoal WHOOP com autenticação Clerk
+After=network-online.target whoop-stats-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=whoop-stats
+Group=whoop-stats
+WorkingDirectory=/var/www/whoop-stats/current/web
+EnvironmentFile=/var/www/whoop-stats/shared/runtime.env
+ExecStart=/usr/bin/node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3032
+Restart=on-failure
+RestartSec=10
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/www/whoop-stats/shared /var/www/whoop-stats/current/web/.next/cache
+MemoryMax=1536M
+CPUQuota=100%
+
+[Install]
+WantedBy=multi-user.target

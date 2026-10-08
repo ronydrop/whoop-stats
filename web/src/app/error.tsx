@@ -27,7 +27,7 @@ export default function Error({
           Ocorreu um problema
         </h2>
         <p className="text-sm text-text-secondary max-w-md mx-auto">
-          Não foi possível carregar seus dados. Abra o painel pelo atalho WHOOP em Português e tente novamente.
+          Não foi possível carregar seus dados. Abra o painel pelo atalho WHOOP Metrics e tente novamente.
         </p>
         <button
           onClick={reset}

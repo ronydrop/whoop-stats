@@ -13,7 +13,7 @@ export default async function StressPage({ searchParams }: { searchParams: Promi
   const requested = params.day ?? params.end ?? today;
   const valid = validStressDate(requested) && requested <= today;
   const date = valid ? requested : today;
-  const view = await stressClient().read(date);
+  const view = await (await stressClient()).read(date);
   return <div className="dashboard-page">
     <header><span className="page-kicker">SEU PAINEL WHOOP</span><h1 className="text-2xl font-semibold tracking-tight">Estresse</h1><p className="mt-1 text-sm text-text-secondary">Observe como seu estresse fisiológico varia ao longo do dia.</p></header>
     {!valid && <p role="alert" className="text-sm text-recovery-yellow">A data informada é inválida. Mostrando hoje.</p>}

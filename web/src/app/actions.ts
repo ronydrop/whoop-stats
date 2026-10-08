@@ -1,7 +1,9 @@
 "use server";
 import { client } from "@/lib/api/client";
+import { requireOwner } from "@/lib/auth-server";
 
 export async function syncWhoopData() {
+  await requireOwner();
   try {
     const { response } = await client.POST("/api/v1/sync");
     if (response.ok) return { ok: true, message: "" };
@@ -10,7 +12,7 @@ export async function syncWhoopData() {
       : "Não foi possível iniciar a sincronização. Confira a conexão e tente novamente.";
     return { ok: false, message };
   } catch {
-    return { ok: false, message: "Não foi possível conectar ao servidor local. Abra o painel pelo atalho e tente novamente." };
+    return { ok: false, message: "Não foi possível conectar ao servidor. Tente novamente em alguns minutos." };
   }
 }
 export async function getSyncStatus() {

@@ -1,10 +1,18 @@
-name: CI
+name: CI e deploy Jarvis
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: whoop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   backend:
@@ -22,18 +30,20 @@ jobs:
       WHOOP_TEST_DATABASE_URL: postgres://whoop_test:test_only@localhost:5432/whoop_test?sslmode=disable
       GOMAXPROCS: 2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
         with:
           go-version: "1.25"
 
       - name: Build
-        run: go build -v ./cmd/... ./internal/...
+        run: go build -p 2 ./cmd/... ./internal/...
 
       - name: Vet
-        run: go vet ./cmd/... ./internal/...
+        run: go vet -p 2 ./cmd/... ./internal/...
 
       - name: Preparar banco de testes isolado
         run: |
@@ -44,23 +54,46 @@ jobs:
       - name: Testes unitários e de integração
         run: go test -p 1 -race -count=1 ./internal/...
 
+      - name: Validar pacote e scripts de deploy
+        run: |
+          bash -n deploy/jarvis/deploy.sh
+          bash -n deploy/jarvis/receive.sh
+          WHOOP_TEST_ARTIFACT_DIR="$RUNNER_TEMP" python3 deploy/jarvis/test_extract.py
+
+      - name: Gerar servidor Linux
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          CGO_ENABLED: 0
+        run: go build -p 2 -trimpath -ldflags='-w -s' -o "$RUNNER_TEMP/whoop-stats" ./cmd/server
+
+      - name: Guardar servidor desta execução
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: backend-${{ github.run_id }}
+          path: ${{ runner.temp }}/whoop-stats
+          if-no-files-found: error
+          retention-days: 3
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ./web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: "./web/package-lock.json"
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci --no-audit --no-fund
 
       - name: Testes do frontend
         run: npm test
@@ -72,3 +105,70 @@ jobs:
         run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: 1
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:8085
+
+      - name: Empacotar interface compilada
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          test -f src/lib/auth-server.ts
+          tar --exclude='.next/cache' -czf "$RUNNER_TEMP/whoop-web.tgz" \
+            .next node_modules public package.json package-lock.json next.config.ts
+
+      - name: Guardar interface desta execução
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: frontend-${{ github.run_id }}
+          path: ${{ runner.temp }}/whoop-web.tgz
+          if-no-files-found: error
+          retention-days: 3
+
+  deploy:
+    name: Publicar na VPS Jarvis
+    needs: [backend, frontend]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://whoop.botjarvis.com.br
+    steps:
+      - name: Recuperar servidor validado
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: backend-${{ github.run_id }}
+          path: ${{ runner.temp }}/release/bin
+
+      - name: Recuperar interface validada
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: frontend-${{ github.run_id }}
+          path: ${{ runner.temp }}/frontend
+
+      - name: Preparar versão identificada pelo commit
+        run: |
+          mkdir -p "$RUNNER_TEMP/release/web"
+          tar -xzf "$RUNNER_TEMP/frontend/whoop-web.tgz" -C "$RUNNER_TEMP/release/web"
+          chmod 755 "$RUNNER_TEMP/release/bin/whoop-stats"
+          printf '%s\n' "$GITHUB_SHA" > "$RUNNER_TEMP/release/REVISION"
+          tar -czf "$RUNNER_TEMP/release.tgz" -C "$RUNNER_TEMP/release" .
+
+      - name: Enviar e ativar versão com rollback automático
+        env:
+          DEPLOY_KEY: ${{ secrets.WHOOP_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.WHOOP_DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ vars.WHOOP_DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ vars.WHOOP_DEPLOY_PORT }}
+          DEPLOY_USER: ${{ vars.WHOOP_DEPLOY_USER }}
+        run: |
+          test -n "$DEPLOY_KEY" && test -n "$DEPLOY_KNOWN_HOSTS"
+          test -n "$DEPLOY_HOST" && test -n "$DEPLOY_PORT" && test -n "$DEPLOY_USER"
+          umask 077
+          printf '%s\n' "$DEPLOY_KEY" > "$RUNNER_TEMP/deploy-key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$RUNNER_TEMP/known-hosts"
+          ssh -T -i "$RUNNER_TEMP/deploy-key" -p "$DEPLOY_PORT" \
+            -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$RUNNER_TEMP/known-hosts" -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+            "$DEPLOY_USER@$DEPLOY_HOST" "deploy $GITHUB_SHA" < "$RUNNER_TEMP/release.tgz"

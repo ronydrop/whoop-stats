@@ -1,4 +1,8 @@
-# WHOOP Stats — painel pessoal em português
+# WHOOP Metrics — painel pessoal em português
+
+## VPS Jarvis
+
+O painel remoto usa `https://whoop.botjarvis.com.br`, com autenticação pelo Clerk e acesso aos dados restrito ao e-mail verificado configurado em `WHOOP_OWNER_EMAIL`. Consulte [a operação na VPS](deploy/jarvis/README.md) para serviços, configuração e verificações.
 
 ## Windows, sem Docker
 
@@ -24,7 +28,7 @@ A Visão geral reúne recuperação, esforço, sono, consistência, déficit de 
 
 Abra `http://localhost:3032/stress` e entre na mesma conta WHOOP do painel. O login aceita verificação por SMS, e-mail ou autenticador. A conexão usa a interface privada documentada pelo [Totem](https://github.com/thebriangao/totem), separada do OAuth oficial. Não instala nem habilita as ferramentas de escrita daquele MCP. As únicas consultas são a identificação da conta (`/users-service/v2/bootstrap`) e o estresse por dia (`/health-service/v2/stress-bff/{date}`); as chamadas de autenticação usam o proxy Cognito da WHOOP.
 
-A senha não é persistida. Sessão e leituras ficam em `data/stress.enc`, criptografadas com AES-256-GCM e uma chave derivada de `WHOOP_STATS_ENCRYPTION_KEY`. `WHOOP_STRESS_STORE` permite configurar outro caminho absoluto no servidor. Preserve essa chave ao reiniciar. O arquivo não é servido ao navegador nem incluído no Git. O login é permitido somente pelo endereço local do painel. A integração renova a sessão quando possível; se a renovação expirar, solicita novo login. Desconectar remove a sessão local e preserva as leituras já consultadas; não revoga sessões do aplicativo WHOOP.
+A senha não é persistida. Sessão e leituras ficam em `data/stress.enc`, criptografadas com AES-256-GCM e uma chave derivada de `WHOOP_STATS_ENCRYPTION_KEY`. `WHOOP_STRESS_STORE` permite configurar outro caminho absoluto no servidor. Preserve essa chave ao reiniciar. O arquivo não é servido ao navegador nem incluído no Git. O login exige o titular autenticado pelo Clerk e a origem exata configurada em `WHOOP_APP_ORIGIN`. A integração renova a sessão quando possível; se a renovação expirar, solicita novo login. Desconectar remove a sessão local e preserva as leituras já consultadas; não revoga sessões do aplicativo WHOOP.
 
 As consultas são feitas ao abrir ou atualizar a tela, com cache de um minuto por dia e espera de cinco minutos após HTTP 429. Falhas conservam a última consulta com aviso de desatualização. O gráfico usa a sequência completa (`extended24_hour_graph`), preserva a ordem temporal e separa as datas nas viradas de meia-noite antes de filtrar o dia civil. Para janelas históricas encerradas, confirma a data final com os horários dos ciclos já sincronizados pela API oficial; sem essa confirmação, não atribui datas por suposição. O dia atual termina no horário da consulta, sem pontos no futuro. Leituras, mínimo e pico pertencem somente ao dia selecionado. O cache anterior à correção temporal é ignorado e substituído na próxima consulta bem-sucedida, preservando a sessão.
 
@@ -46,13 +50,13 @@ Ao gerar os executáveis locais, pare esta instalação pelo iniciador, compile 
 
 A documentação original do upstream abaixo descreve também alternativas de implantação que não são necessárias para a instalação Windows.
 
-# WHOOP em Português
+# WHOOP Metrics
 
 Fork pessoal de [arvarik/whoop-stats](https://github.com/arvarik/whoop-stats), com interface em português brasileiro e execução local no Windows.
 
 ## Uso no Windows
 
-- Abra **Iniciar WHOOP.cmd**, ou o atalho **WHOOP em Português** na área de trabalho. O inicializador abre o banco exclusivo deste painel, o servidor e a interface em segundo plano.
+- Abra **Iniciar WHOOP.cmd**, ou o atalho **WHOOP Metrics** na área de trabalho. O inicializador abre o banco exclusivo deste painel, o servidor e a interface em segundo plano.
 - Acesse **http://localhost:3032**. As páginas mostram visão geral, recuperação, sono, esforço e treinos. O idioma permanece em português; datas usam o fuso de São Paulo e números usam vírgula decimal.
 - Use **Sincronizar** para solicitar uma atualização. A primeira importação de um histórico longo pode levar alguns minutos.
 - Use **Data inicial**, **Data final** e **Aplicar período**, ou os atalhos Hoje, Ontem, 7 dias e 30 dias. O filtro permanece ao mudar de tela. Cada consulta permite até 366 dias.
