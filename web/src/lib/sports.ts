@@ -1,5 +1,5 @@
 const names: Record<string, string> = {
-  running: "Corrida", walking: "Caminhada", weightlifting: "Musculação",
+  running: "Corrida", walking: "Caminhada", weightlifting: "Musculação", "weightlifting-msk": "Strength Trainer", powerlifting: "Levantamento de força",
   cycling: "Ciclismo", swimming: "Natação", yoga: "Ioga", tennis: "Tênis",
   "hiking-rucking": "Trilha com mochila", hiking: "Trilha", rucking: "Caminhada com carga",
   activity: "Atividade", "functional-fitness": "Treino funcional", crossfit: "CrossFit",

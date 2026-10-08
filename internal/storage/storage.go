@@ -11,6 +11,7 @@ import (
 
 	"github.com/arvarik/whoop-go/whoop"
 	"github.com/arvind/whoop-stats/internal/db"
+	"github.com/arvind/whoop-stats/internal/whoopdata"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,7 +38,7 @@ func (s *Storage) DB() *db.Queries {
 	return s.db
 }
 
-func mapCycleParams(userID pgtype.UUID, cycle *whoop.Cycle) db.UpsertCycleParams {
+func mapCycleParams(userID pgtype.UUID, cycle *whoopdata.Cycle) db.UpsertCycleParams {
 	endTime := pgtype.Timestamptz{Valid: false}
 	if cycle.End != nil && !cycle.End.IsZero() {
 		endTime = pgtype.Timestamptz{Time: *cycle.End, Valid: true}
@@ -47,11 +48,11 @@ func mapCycleParams(userID pgtype.UUID, cycle *whoop.Cycle) db.UpsertCycleParams
 
 	var strain, kilojoule pgtype.Float4
 	var avgHR, maxHR pgtype.Int4
-	if cycle.Score != nil {
-		strain = pgtype.Float4{Float32: float32(cycle.Score.Strain), Valid: true}
-		kilojoule = pgtype.Float4{Float32: float32(cycle.Score.Kilojoule), Valid: true}
-		avgHR = pgtype.Int4{Int32: int32(cycle.Score.AverageHeartRate), Valid: true}
-		maxHR = pgtype.Int4{Int32: int32(cycle.Score.MaxHeartRate), Valid: true}
+	if cycle.Score != nil && cycle.ScoreState == "SCORED" {
+		strain = optionalFloat(cycle.Score.Strain)
+		kilojoule = optionalFloat(cycle.Score.Kilojoule)
+		avgHR = optionalInt(cycle.Score.AverageHeartRate)
+		maxHR = optionalInt(cycle.Score.MaxHeartRate)
 	}
 
 	return db.UpsertCycleParams{
@@ -65,11 +66,12 @@ func mapCycleParams(userID pgtype.UUID, cycle *whoop.Cycle) db.UpsertCycleParams
 		AverageHeartRate: avgHR,
 		MaxHeartRate:     maxHR,
 		ScoreState:       pgtype.Text{String: cycle.ScoreState, Valid: true},
+		StepCount:        optionalInt(cycle.StepCount),
 	}
 }
 
 // UpsertCycle persists a WHOOP cycle record, updating it if it already exists.
-func (s *Storage) UpsertCycle(ctx context.Context, userID pgtype.UUID, cycle *whoop.Cycle) error {
+func (s *Storage) UpsertCycle(ctx context.Context, userID pgtype.UUID, cycle *whoopdata.Cycle) error {
 	params := mapCycleParams(userID, cycle)
 	err := s.db.UpsertCycle(ctx, params)
 	if err != nil {
@@ -80,7 +82,7 @@ func (s *Storage) UpsertCycle(ctx context.Context, userID pgtype.UUID, cycle *wh
 }
 
 // UpsertCycles persists a batch of WHOOP cycle records.
-func (s *Storage) UpsertCycles(ctx context.Context, userID pgtype.UUID, cycles []whoop.Cycle) error {
+func (s *Storage) UpsertCycles(ctx context.Context, userID pgtype.UUID, cycles []whoopdata.Cycle) error {
 	if len(cycles) == 0 {
 		return nil
 	}
@@ -99,6 +101,7 @@ func (s *Storage) UpsertCycles(ctx context.Context, userID pgtype.UUID, cycles [
 			p.AverageHeartRate,
 			p.MaxHeartRate,
 			p.ScoreState,
+			p.StepCount,
 		)
 	}
 
@@ -115,7 +118,7 @@ func (s *Storage) UpsertCycles(ctx context.Context, userID pgtype.UUID, cycles [
 	return nil
 }
 
-func mapSleepParams(userID pgtype.UUID, sleep *whoop.Sleep) db.UpsertSleepParams {
+func mapSleepParams(userID pgtype.UUID, sleep *whoopdata.Sleep) db.UpsertSleepParams {
 	endTime := pgtype.Timestamptz{Valid: false}
 	if !sleep.End.IsZero() {
 		endTime = pgtype.Timestamptz{Time: sleep.End, Valid: true}
@@ -127,29 +130,29 @@ func mapSleepParams(userID pgtype.UUID, sleep *whoop.Sleep) db.UpsertSleepParams
 	var sleepDebt, totalInBed, totalAwake, totalNoData, totalLight, totalSlowWave, totalRem, sleepCycleCount, disturbanceCount pgtype.Int4
 	var baseline, needStrain, needNap pgtype.Int4
 
-	if sleep.Score != nil {
-		performance = pgtype.Float4{Float32: float32(sleep.Score.SleepPerformancePercentage), Valid: true}
-		respiratoryRate = pgtype.Float4{Float32: float32(sleep.Score.RespiratoryRate), Valid: true}
-		sleepConsistency = pgtype.Float4{Float32: float32(sleep.Score.SleepConsistencyPercentage), Valid: true}
-		sleepEfficiency = pgtype.Float4{Float32: float32(sleep.Score.SleepEfficiencyPercentage), Valid: true}
+	if sleep.Score != nil && sleep.ScoreState == "SCORED" {
+		performance = optionalFloat(sleep.Score.SleepPerformancePercentage)
+		respiratoryRate = optionalFloat(sleep.Score.RespiratoryRate)
+		sleepConsistency = optionalFloat(sleep.Score.SleepConsistencyPercentage)
+		sleepEfficiency = optionalFloat(sleep.Score.SleepEfficiencyPercentage)
 
 		if sleep.Score.SleepNeeded != nil {
-			sleepDebt = pgtype.Int4{Int32: int32(sleep.Score.SleepNeeded.NeedFromSleepDebtMilli), Valid: true}
-			baseline = pgtype.Int4{Int32: int32(sleep.Score.SleepNeeded.BaselineMilli), Valid: true}
-			needStrain = pgtype.Int4{Int32: int32(sleep.Score.SleepNeeded.NeedFromRecentStrainMilli), Valid: true}
-			needNap = pgtype.Int4{Int32: int32(sleep.Score.SleepNeeded.NeedFromRecentNapMilli), Valid: true}
+			sleepDebt = optionalInt(sleep.Score.SleepNeeded.NeedFromSleepDebtMilli)
+			baseline = optionalInt(sleep.Score.SleepNeeded.BaselineMilli)
+			needStrain = optionalInt(sleep.Score.SleepNeeded.NeedFromRecentStrainMilli)
+			needNap = optionalInt(sleep.Score.SleepNeeded.NeedFromRecentNapMilli)
 		}
 
 		if sleep.Score.StageSummary != nil {
 			ss := sleep.Score.StageSummary
-			totalInBed = pgtype.Int4{Int32: int32(ss.TotalInBedTimeMilli), Valid: true}
-			totalAwake = pgtype.Int4{Int32: int32(ss.TotalAwakeTimeMilli), Valid: true}
-			totalNoData = pgtype.Int4{Int32: int32(ss.TotalNoDataTimeMilli), Valid: true}
-			totalLight = pgtype.Int4{Int32: int32(ss.TotalLightSleepTimeMilli), Valid: true}
-			totalSlowWave = pgtype.Int4{Int32: int32(ss.TotalSlowWaveSleepTimeMilli), Valid: true}
-			totalRem = pgtype.Int4{Int32: int32(ss.TotalRemSleepTimeMilli), Valid: true}
-			sleepCycleCount = pgtype.Int4{Int32: int32(ss.SleepCycleCount), Valid: true}
-			disturbanceCount = pgtype.Int4{Int32: int32(ss.DisturbanceCount), Valid: true}
+			totalInBed = optionalInt(ss.TotalInBedTimeMilli)
+			totalAwake = optionalInt(ss.TotalAwakeTimeMilli)
+			totalNoData = optionalInt(ss.TotalNoDataTimeMilli)
+			totalLight = optionalInt(ss.TotalLightSleepTimeMilli)
+			totalSlowWave = optionalInt(ss.TotalSlowWaveSleepTimeMilli)
+			totalRem = optionalInt(ss.TotalRemSleepTimeMilli)
+			sleepCycleCount = optionalInt(ss.SleepCycleCount)
+			disturbanceCount = optionalInt(ss.DisturbanceCount)
 		}
 	}
 
@@ -182,7 +185,7 @@ func mapSleepParams(userID pgtype.UUID, sleep *whoop.Sleep) db.UpsertSleepParams
 }
 
 // UpsertSleep persists a WHOOP sleep record with all stage and need data.
-func (s *Storage) UpsertSleep(ctx context.Context, userID pgtype.UUID, sleep *whoop.Sleep) error {
+func (s *Storage) UpsertSleep(ctx context.Context, userID pgtype.UUID, sleep *whoopdata.Sleep) error {
 	params := mapSleepParams(userID, sleep)
 	if err := s.db.UpsertSleep(ctx, params); err != nil {
 		return fmt.Errorf("upserting sleep %s: %w", sleep.ID, err)
@@ -192,7 +195,7 @@ func (s *Storage) UpsertSleep(ctx context.Context, userID pgtype.UUID, sleep *wh
 }
 
 // UpsertSleeps persists a batch of WHOOP sleep records.
-func (s *Storage) UpsertSleeps(ctx context.Context, userID pgtype.UUID, sleeps []whoop.Sleep) error {
+func (s *Storage) UpsertSleeps(ctx context.Context, userID pgtype.UUID, sleeps []whoopdata.Sleep) error {
 	if len(sleeps) == 0 {
 		return nil
 	}
@@ -241,18 +244,18 @@ func (s *Storage) UpsertSleeps(ctx context.Context, userID pgtype.UUID, sleeps [
 	return nil
 }
 
-func mapRecoveryParams(userID pgtype.UUID, recovery *whoop.Recovery) db.UpsertRecoveryParams {
+func mapRecoveryParams(userID pgtype.UUID, recovery *whoopdata.Recovery) db.UpsertRecoveryParams {
 	timezoneOffset := pgtype.Interval{Valid: false}
 
 	var score, rhr, hrv, spo2, skinTemp pgtype.Float4
 	var userCalibrating pgtype.Bool
-	if recovery.Score != nil {
-		score = pgtype.Float4{Float32: float32(recovery.Score.RecoveryScore), Valid: true}
-		rhr = pgtype.Float4{Float32: float32(recovery.Score.RestingHeartRate), Valid: true}
-		hrv = pgtype.Float4{Float32: float32(recovery.Score.HrvRmssdMilli), Valid: true}
-		spo2 = pgtype.Float4{Float32: float32(recovery.Score.Spo2Percentage), Valid: true}
-		skinTemp = pgtype.Float4{Float32: float32(recovery.Score.SkinTempCelsius), Valid: true}
-		userCalibrating = pgtype.Bool{Bool: recovery.Score.UserCalibrating, Valid: true}
+	if recovery.Score != nil && recovery.ScoreState == "SCORED" {
+		score = optionalFloat(recovery.Score.RecoveryScore)
+		rhr = optionalFloat(recovery.Score.RestingHeartRate)
+		hrv = optionalFloat(recovery.Score.HrvRmssdMilli)
+		spo2 = optionalFloat(recovery.Score.Spo2Percentage)
+		skinTemp = optionalFloat(recovery.Score.SkinTempCelsius)
+		userCalibrating = optionalBool(recovery.Score.UserCalibrating)
 	}
 
 	startTime := pgtype.Timestamptz{Time: recovery.CreatedAt, Valid: true}
@@ -274,7 +277,7 @@ func mapRecoveryParams(userID pgtype.UUID, recovery *whoop.Recovery) db.UpsertRe
 }
 
 // UpsertRecovery persists a WHOOP recovery record.
-func (s *Storage) UpsertRecovery(ctx context.Context, userID pgtype.UUID, recovery *whoop.Recovery) error {
+func (s *Storage) UpsertRecovery(ctx context.Context, userID pgtype.UUID, recovery *whoopdata.Recovery) error {
 	params := mapRecoveryParams(userID, recovery)
 	if err := s.db.UpsertRecovery(ctx, params); err != nil {
 		return fmt.Errorf("upserting recovery (cycle %d): %w", recovery.CycleID, err)
@@ -284,7 +287,7 @@ func (s *Storage) UpsertRecovery(ctx context.Context, userID pgtype.UUID, recove
 }
 
 // UpsertRecoveries persists a batch of WHOOP recovery records.
-func (s *Storage) UpsertRecoveries(ctx context.Context, userID pgtype.UUID, recoveries []whoop.Recovery) error {
+func (s *Storage) UpsertRecoveries(ctx context.Context, userID pgtype.UUID, recoveries []whoopdata.Recovery) error {
 	if len(recoveries) == 0 {
 		return nil
 	}
@@ -321,7 +324,7 @@ func (s *Storage) UpsertRecoveries(ctx context.Context, userID pgtype.UUID, reco
 	return nil
 }
 
-func mapWorkoutParams(userID pgtype.UUID, workout *whoop.Workout) db.UpsertWorkoutParams {
+func mapWorkoutParams(userID pgtype.UUID, workout *whoopdata.Workout) db.UpsertWorkoutParams {
 	endTime := pgtype.Timestamptz{Valid: false}
 	if !workout.End.IsZero() {
 		endTime = pgtype.Timestamptz{Time: workout.End, Valid: true}
@@ -332,31 +335,31 @@ func mapWorkoutParams(userID pgtype.UUID, workout *whoop.Workout) db.UpsertWorko
 	var strain, kilojoule, percentRecorded, distance, altGain, altChange pgtype.Float4
 	var avgHR, maxHR, z0, z1, z2, z3, z4, z5 pgtype.Int4
 
-	if workout.Score != nil {
-		strain = pgtype.Float4{Float32: float32(workout.Score.Strain), Valid: true}
-		kilojoule = pgtype.Float4{Float32: float32(workout.Score.Kilojoule), Valid: true}
-		percentRecorded = pgtype.Float4{Float32: float32(workout.Score.PercentRecorded), Valid: true}
-		avgHR = pgtype.Int4{Int32: int32(workout.Score.AverageHeartRate), Valid: true}
-		maxHR = pgtype.Int4{Int32: int32(workout.Score.MaxHeartRate), Valid: true}
+	if workout.Score != nil && workout.ScoreState == "SCORED" {
+		strain = optionalFloat(workout.Score.Strain)
+		kilojoule = optionalFloat(workout.Score.Kilojoule)
+		percentRecorded = optionalFloat(workout.Score.PercentRecorded)
+		avgHR = optionalInt(workout.Score.AverageHeartRate)
+		maxHR = optionalInt(workout.Score.MaxHeartRate)
 
 		if workout.Score.DistanceMeter != nil {
-			distance = pgtype.Float4{Float32: float32(*workout.Score.DistanceMeter), Valid: true}
+			distance = optionalFloat(workout.Score.DistanceMeter)
 		}
 		if workout.Score.AltitudeGainMeter != nil {
-			altGain = pgtype.Float4{Float32: float32(*workout.Score.AltitudeGainMeter), Valid: true}
+			altGain = optionalFloat(workout.Score.AltitudeGainMeter)
 		}
 		if workout.Score.AltitudeChangeMeter != nil {
-			altChange = pgtype.Float4{Float32: float32(*workout.Score.AltitudeChangeMeter), Valid: true}
+			altChange = optionalFloat(workout.Score.AltitudeChangeMeter)
 		}
 
 		if workout.Score.ZoneDuration != nil {
 			zd := workout.Score.ZoneDuration
-			z0 = pgtype.Int4{Int32: int32(zd.ZoneZeroMilli), Valid: true}
-			z1 = pgtype.Int4{Int32: int32(zd.ZoneOneMilli), Valid: true}
-			z2 = pgtype.Int4{Int32: int32(zd.ZoneTwoMilli), Valid: true}
-			z3 = pgtype.Int4{Int32: int32(zd.ZoneThreeMilli), Valid: true}
-			z4 = pgtype.Int4{Int32: int32(zd.ZoneFourMilli), Valid: true}
-			z5 = pgtype.Int4{Int32: int32(zd.ZoneFiveMilli), Valid: true}
+			z0 = optionalInt(zd.ZoneZeroMilli)
+			z1 = optionalInt(zd.ZoneOneMilli)
+			z2 = optionalInt(zd.ZoneTwoMilli)
+			z3 = optionalInt(zd.ZoneThreeMilli)
+			z4 = optionalInt(zd.ZoneFourMilli)
+			z5 = optionalInt(zd.ZoneFiveMilli)
 		}
 	}
 
@@ -387,7 +390,7 @@ func mapWorkoutParams(userID pgtype.UUID, workout *whoop.Workout) db.UpsertWorko
 }
 
 // UpsertWorkout persists a WHOOP workout record with HR zones and GPS data.
-func (s *Storage) UpsertWorkout(ctx context.Context, userID pgtype.UUID, workout *whoop.Workout) error {
+func (s *Storage) UpsertWorkout(ctx context.Context, userID pgtype.UUID, workout *whoopdata.Workout) error {
 	params := mapWorkoutParams(userID, workout)
 	if err := s.db.UpsertWorkout(ctx, params); err != nil {
 		return fmt.Errorf("upserting workout %s: %w", workout.ID, err)
@@ -397,7 +400,7 @@ func (s *Storage) UpsertWorkout(ctx context.Context, userID pgtype.UUID, workout
 }
 
 // UpsertWorkouts persists a batch of WHOOP workout records.
-func (s *Storage) UpsertWorkouts(ctx context.Context, userID pgtype.UUID, workouts []whoop.Workout) error {
+func (s *Storage) UpsertWorkouts(ctx context.Context, userID pgtype.UUID, workouts []whoopdata.Workout) error {
 	if len(workouts) == 0 {
 		return nil
 	}
@@ -491,4 +494,23 @@ func (s *Storage) UpsertBodyMeasurement(ctx context.Context, userID pgtype.UUID,
 	}
 	s.logger.Debug("Upserted body measurement", "user_id", userID)
 	return nil
+}
+
+func optionalFloat(value *float64) pgtype.Float4 {
+	if value == nil {
+		return pgtype.Float4{}
+	}
+	return pgtype.Float4{Float32: float32(*value), Valid: true}
+}
+func optionalInt(value *int) pgtype.Int4 {
+	if value == nil {
+		return pgtype.Int4{}
+	}
+	return pgtype.Int4{Int32: int32(*value), Valid: true}
+}
+func optionalBool(value *bool) pgtype.Bool {
+	if value == nil {
+		return pgtype.Bool{}
+	}
+	return pgtype.Bool{Bool: *value, Valid: true}
 }

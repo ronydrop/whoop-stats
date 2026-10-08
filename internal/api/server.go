@@ -79,6 +79,7 @@ func NewServer(cfg *config.Config, handler *Handler, logger *slog.Logger) *chi.M
 		r.Get("/insights", handler.GetInsights)
 
 		r.Post("/sync", handler.PostSync)
+		r.Get("/sync/status", handler.GetSyncStatus)
 	})
 
 	return r

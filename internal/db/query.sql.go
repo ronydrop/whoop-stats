@@ -40,41 +40,34 @@ func (q *Queries) CreateWebhookEvent(ctx context.Context, arg CreateWebhookEvent
 	return i, err
 }
 
-const getUserProfile = `-- name: GetUserProfile :one
-SELECT id, whoop_user_id, email, first_name, last_name, created_at, updated_at FROM user_profiles
-WHERE id = $1 LIMIT 1
-`
-
-func (q *Queries) GetUserProfile(ctx context.Context, id pgtype.UUID) (UserProfile, error) {
-	row := q.db.QueryRow(ctx, getUserProfile, id)
-	var i UserProfile
-	err := row.Scan(
-		&i.ID,
-		&i.WhoopUserID,
-		&i.Email,
-		&i.FirstName,
-		&i.LastName,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const getCycles = `-- name: GetCycles :many
-SELECT id, user_id, start_time, end_time, timezone_offset, strain, kilojoule, average_heart_rate, max_heart_rate, score_state, created_at, updated_at FROM cycles
-WHERE user_id = $1 AND start_time < $2
-ORDER BY start_time DESC
-LIMIT $3
+SELECT id, user_id, start_time, end_time, timezone_offset, strain, kilojoule, average_heart_rate, max_heart_rate, score_state, created_at, updated_at, step_count FROM cycles
+WHERE user_id = $1
+AND start_time < $2::timestamptz
+AND (end_time IS NULL OR end_time > $3::timestamptz)
+AND (start_time < $4::timestamptz OR (start_time = $4::timestamptz AND id::text < $5::text))
+ORDER BY start_time DESC, id::text DESC
+LIMIT $6
 `
 
 type GetCyclesParams struct {
-	UserID    pgtype.UUID        `json:"user_id"`
-	StartTime pgtype.Timestamptz `json:"start_time"`
-	Limit     int32              `json:"limit"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	PeriodEnd   pgtype.Timestamptz `json:"period_end"`
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	CursorTime  pgtype.Timestamptz `json:"cursor_time"`
+	CursorID    string             `json:"cursor_id"`
+	PageLimit   int32              `json:"page_limit"`
 }
 
 func (q *Queries) GetCycles(ctx context.Context, arg GetCyclesParams) ([]Cycle, error) {
-	rows, err := q.db.Query(ctx, getCycles, arg.UserID, arg.StartTime, arg.Limit)
+	rows, err := q.db.Query(ctx, getCycles,
+		arg.UserID,
+		arg.PeriodEnd,
+		arg.PeriodStart,
+		arg.CursorTime,
+		arg.CursorID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +88,7 @@ func (q *Queries) GetCycles(ctx context.Context, arg GetCyclesParams) ([]Cycle, 
 			&i.ScoreState,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StepCount,
 		); err != nil {
 			return nil, err
 		}
@@ -108,17 +102,17 @@ func (q *Queries) GetCycles(ctx context.Context, arg GetCyclesParams) ([]Cycle, 
 
 const getDailyRecovery = `-- name: GetDailyRecovery :many
 SELECT user_id, bucket, avg_recovery FROM daily_recovery
-WHERE user_id = $1 AND bucket >= $2
+WHERE user_id = $1 AND bucket >= $2::timestamptz
 ORDER BY bucket ASC
 `
 
 type GetDailyRecoveryParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Bucket interface{} `json:"bucket"`
+	UserID pgtype.UUID        `json:"user_id"`
+	Since  pgtype.Timestamptz `json:"since"`
 }
 
 func (q *Queries) GetDailyRecovery(ctx context.Context, arg GetDailyRecoveryParams) ([]DailyRecovery, error) {
-	rows, err := q.db.Query(ctx, getDailyRecovery, arg.UserID, arg.Bucket)
+	rows, err := q.db.Query(ctx, getDailyRecovery, arg.UserID, arg.Since)
 	if err != nil {
 		return nil, err
 	}
@@ -139,17 +133,17 @@ func (q *Queries) GetDailyRecovery(ctx context.Context, arg GetDailyRecoveryPara
 
 const getDailySleep = `-- name: GetDailySleep :many
 SELECT user_id, bucket, avg_performance, avg_efficiency FROM daily_sleep
-WHERE user_id = $1 AND bucket >= $2
+WHERE user_id = $1 AND bucket >= $2::timestamptz
 ORDER BY bucket ASC
 `
 
 type GetDailySleepParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Bucket interface{} `json:"bucket"`
+	UserID pgtype.UUID        `json:"user_id"`
+	Since  pgtype.Timestamptz `json:"since"`
 }
 
 func (q *Queries) GetDailySleep(ctx context.Context, arg GetDailySleepParams) ([]DailySleep, error) {
-	rows, err := q.db.Query(ctx, getDailySleep, arg.UserID, arg.Bucket)
+	rows, err := q.db.Query(ctx, getDailySleep, arg.UserID, arg.Since)
 	if err != nil {
 		return nil, err
 	}
@@ -176,20 +170,20 @@ func (q *Queries) GetDailySleep(ctx context.Context, arg GetDailySleepParams) ([
 const getDailyStrain = `-- name: GetDailyStrain :many
 
 SELECT user_id, bucket, avg_strain, max_strain FROM daily_strain
-WHERE user_id = $1 AND bucket >= $2
+WHERE user_id = $1 AND bucket >= $2::timestamptz
 ORDER BY bucket ASC
 `
 
 type GetDailyStrainParams struct {
-	UserID pgtype.UUID `json:"user_id"`
-	Bucket interface{} `json:"bucket"`
+	UserID pgtype.UUID        `json:"user_id"`
+	Since  pgtype.Timestamptz `json:"since"`
 }
 
 // ---------------------------------------------------------------------------
 // Continuous Aggregate Queries (dashboard insights)
 // ---------------------------------------------------------------------------
 func (q *Queries) GetDailyStrain(ctx context.Context, arg GetDailyStrainParams) ([]DailyStrain, error) {
-	rows, err := q.db.Query(ctx, getDailyStrain, arg.UserID, arg.Bucket)
+	rows, err := q.db.Query(ctx, getDailyStrain, arg.UserID, arg.Since)
 	if err != nil {
 		return nil, err
 	}
@@ -248,27 +242,64 @@ func (q *Queries) GetPendingWebhookEvents(ctx context.Context, limit int32) ([]W
 }
 
 const getRecoveries = `-- name: GetRecoveries :many
-SELECT id, user_id, start_time, timezone_offset, recovery_score, resting_heart_rate, hrv_rmssd_milli, spo2_percentage, skin_temp_celsius, sleep_id, score_state, user_calibrating, created_at, updated_at FROM recoveries
-WHERE user_id = $1 AND start_time < $2
-ORDER BY start_time DESC
-LIMIT $3
+SELECT r.id, r.user_id, r.start_time, r.timezone_offset, r.recovery_score, r.resting_heart_rate, r.hrv_rmssd_milli, r.spo2_percentage, r.skin_temp_celsius, r.sleep_id, r.score_state, r.user_calibrating, r.created_at, r.updated_at, r.start_time AS recorded_at, s.end_time AS reference_time, c.start_time AS cycle_start, c.end_time AS cycle_end
+FROM recoveries r
+LEFT JOIN sleeps s ON s.id = r.sleep_id AND s.user_id = r.user_id
+LEFT JOIN cycles c ON c.id = r.id AND c.user_id = r.user_id
+WHERE r.user_id = $1
+AND ((COALESCE(s.end_time, r.start_time) >= $2::timestamptz AND COALESCE(s.end_time, r.start_time) < $3::timestamptz)
+ OR (c.start_time < $3::timestamptz AND (c.end_time IS NULL OR c.end_time > $2::timestamptz)))
+AND (r.start_time < $4::timestamptz OR (r.start_time = $4::timestamptz AND r.id::text < $5::text))
+ORDER BY r.start_time DESC, r.id::text DESC
+LIMIT $6
 `
 
 type GetRecoveriesParams struct {
-	UserID    pgtype.UUID        `json:"user_id"`
-	StartTime pgtype.Timestamptz `json:"start_time"`
-	Limit     int32              `json:"limit"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd   pgtype.Timestamptz `json:"period_end"`
+	CursorTime  pgtype.Timestamptz `json:"cursor_time"`
+	CursorID    string             `json:"cursor_id"`
+	PageLimit   int32              `json:"page_limit"`
 }
 
-func (q *Queries) GetRecoveries(ctx context.Context, arg GetRecoveriesParams) ([]Recovery, error) {
-	rows, err := q.db.Query(ctx, getRecoveries, arg.UserID, arg.StartTime, arg.Limit)
+type GetRecoveriesRow struct {
+	ID               int64              `json:"id"`
+	UserID           pgtype.UUID        `json:"user_id"`
+	StartTime        pgtype.Timestamptz `json:"start_time"`
+	TimezoneOffset   pgtype.Interval    `json:"timezone_offset"`
+	RecoveryScore    pgtype.Float4      `json:"recovery_score"`
+	RestingHeartRate pgtype.Float4      `json:"resting_heart_rate"`
+	HrvRmssdMilli    pgtype.Float4      `json:"hrv_rmssd_milli"`
+	Spo2Percentage   pgtype.Float4      `json:"spo2_percentage"`
+	SkinTempCelsius  pgtype.Float4      `json:"skin_temp_celsius"`
+	SleepID          pgtype.Text        `json:"sleep_id"`
+	ScoreState       pgtype.Text        `json:"score_state"`
+	UserCalibrating  pgtype.Bool        `json:"user_calibrating"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	RecordedAt       pgtype.Timestamptz `json:"recorded_at"`
+	ReferenceTime    pgtype.Timestamptz `json:"reference_time"`
+	CycleStart       pgtype.Timestamptz `json:"cycle_start"`
+	CycleEnd         pgtype.Timestamptz `json:"cycle_end"`
+}
+
+func (q *Queries) GetRecoveries(ctx context.Context, arg GetRecoveriesParams) ([]GetRecoveriesRow, error) {
+	rows, err := q.db.Query(ctx, getRecoveries,
+		arg.UserID,
+		arg.PeriodStart,
+		arg.PeriodEnd,
+		arg.CursorTime,
+		arg.CursorID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Recovery{}
+	items := []GetRecoveriesRow{}
 	for rows.Next() {
-		var i Recovery
+		var i GetRecoveriesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
@@ -284,6 +315,10 @@ func (q *Queries) GetRecoveries(ctx context.Context, arg GetRecoveriesParams) ([
 			&i.UserCalibrating,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.RecordedAt,
+			&i.ReferenceTime,
+			&i.CycleStart,
+			&i.CycleEnd,
 		); err != nil {
 			return nil, err
 		}
@@ -297,19 +332,32 @@ func (q *Queries) GetRecoveries(ctx context.Context, arg GetRecoveriesParams) ([
 
 const getSleeps = `-- name: GetSleeps :many
 SELECT id, user_id, start_time, end_time, timezone_offset, performance_score, nap, respiratory_rate, sleep_consistency_percentage, sleep_efficiency_percentage, sleep_debt_milli, total_in_bed_time_milli, total_awake_time_milli, total_no_data_time_milli, total_light_sleep_time_milli, total_slow_wave_sleep_time_milli, total_rem_sleep_time_milli, sleep_cycle_count, disturbance_count, cycle_id, score_state, baseline_milli, need_from_recent_strain_milli, need_from_recent_nap_milli, created_at, updated_at FROM sleeps
-WHERE user_id = $1 AND start_time < $2
-ORDER BY start_time DESC
-LIMIT $3
+WHERE user_id = $1
+AND end_time >= $2::timestamptz
+AND end_time < $3::timestamptz
+AND (start_time < $4::timestamptz OR (start_time = $4::timestamptz AND id::text < $5::text))
+ORDER BY start_time DESC, id::text DESC
+LIMIT $6
 `
 
 type GetSleepsParams struct {
-	UserID    pgtype.UUID        `json:"user_id"`
-	StartTime pgtype.Timestamptz `json:"start_time"`
-	Limit     int32              `json:"limit"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	PeriodEnd   pgtype.Timestamptz `json:"period_end"`
+	CursorTime  pgtype.Timestamptz `json:"cursor_time"`
+	CursorID    string             `json:"cursor_id"`
+	PageLimit   int32              `json:"page_limit"`
 }
 
 func (q *Queries) GetSleeps(ctx context.Context, arg GetSleepsParams) ([]Sleep, error) {
-	rows, err := q.db.Query(ctx, getSleeps, arg.UserID, arg.StartTime, arg.Limit)
+	rows, err := q.db.Query(ctx, getSleeps,
+		arg.UserID,
+		arg.PeriodStart,
+		arg.PeriodEnd,
+		arg.CursorTime,
+		arg.CursorID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -344,6 +392,38 @@ func (q *Queries) GetSleeps(ctx context.Context, arg GetSleepsParams) ([]Sleep, 
 			&i.NeedFromRecentNapMilli,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getSyncStatus = `-- name: GetSyncStatus :many
+SELECT user_id, resource, state, started_at, finished_at, last_success_at, error_message FROM sync_status WHERE user_id = $1 ORDER BY resource
+`
+
+func (q *Queries) GetSyncStatus(ctx context.Context, userID pgtype.UUID) ([]SyncStatus, error) {
+	rows, err := q.db.Query(ctx, getSyncStatus, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SyncStatus{}
+	for rows.Next() {
+		var i SyncStatus
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Resource,
+			&i.State,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.LastSuccessAt,
+			&i.ErrorMessage,
 		); err != nil {
 			return nil, err
 		}
@@ -393,21 +473,54 @@ func (q *Queries) GetUserByWhoopID(ctx context.Context, whoopUserID string) (Use
 	return i, err
 }
 
+const getUserProfile = `-- name: GetUserProfile :one
+SELECT id, whoop_user_id, email, first_name, last_name, created_at, updated_at FROM user_profiles
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserProfile(ctx context.Context, id pgtype.UUID) (UserProfile, error) {
+	row := q.db.QueryRow(ctx, getUserProfile, id)
+	var i UserProfile
+	err := row.Scan(
+		&i.ID,
+		&i.WhoopUserID,
+		&i.Email,
+		&i.FirstName,
+		&i.LastName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getWorkouts = `-- name: GetWorkouts :many
 SELECT id, user_id, start_time, end_time, timezone_offset, sport_id, sport_name, strain, average_heart_rate, max_heart_rate, kilojoule, percent_recorded, distance_meter, altitude_gain_meter, altitude_change_meter, zone_zero_milli, zone_one_milli, zone_two_milli, zone_three_milli, zone_four_milli, zone_five_milli, score_state, created_at, updated_at FROM workouts
-WHERE user_id = $1 AND start_time < $2
-ORDER BY start_time DESC
-LIMIT $3
+WHERE user_id = $1
+AND start_time < $2::timestamptz
+AND (end_time IS NULL OR end_time > $3::timestamptz)
+AND (start_time < $4::timestamptz OR (start_time = $4::timestamptz AND id::text < $5::text))
+ORDER BY start_time DESC, id::text DESC
+LIMIT $6
 `
 
 type GetWorkoutsParams struct {
-	UserID    pgtype.UUID        `json:"user_id"`
-	StartTime pgtype.Timestamptz `json:"start_time"`
-	Limit     int32              `json:"limit"`
+	UserID      pgtype.UUID        `json:"user_id"`
+	PeriodEnd   pgtype.Timestamptz `json:"period_end"`
+	PeriodStart pgtype.Timestamptz `json:"period_start"`
+	CursorTime  pgtype.Timestamptz `json:"cursor_time"`
+	CursorID    string             `json:"cursor_id"`
+	PageLimit   int32              `json:"page_limit"`
 }
 
 func (q *Queries) GetWorkouts(ctx context.Context, arg GetWorkoutsParams) ([]Workout, error) {
-	rows, err := q.db.Query(ctx, getWorkouts, arg.UserID, arg.StartTime, arg.Limit)
+	rows, err := q.db.Query(ctx, getWorkouts,
+		arg.UserID,
+		arg.PeriodEnd,
+		arg.PeriodStart,
+		arg.CursorTime,
+		arg.CursorID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -449,6 +562,46 @@ func (q *Queries) GetWorkouts(ctx context.Context, arg GetWorkoutsParams) ([]Wor
 		return nil, err
 	}
 	return items, nil
+}
+
+const interruptSyncStatus = `-- name: InterruptSyncStatus :exec
+UPDATE sync_status SET state = 'interrupted', finished_at = NOW(), error_message = 'Atualização interrompida; tente novamente.' WHERE state = 'running'
+`
+
+func (q *Queries) InterruptSyncStatus(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, interruptSyncStatus)
+	return err
+}
+
+const setSyncStatus = `-- name: SetSyncStatus :exec
+INSERT INTO sync_status (user_id, resource, state, started_at, finished_at, last_success_at, error_message)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (user_id, resource) DO UPDATE SET
+ state = EXCLUDED.state, started_at = EXCLUDED.started_at, finished_at = EXCLUDED.finished_at,
+ last_success_at = COALESCE(EXCLUDED.last_success_at, sync_status.last_success_at), error_message = EXCLUDED.error_message
+`
+
+type SetSyncStatusParams struct {
+	UserID        pgtype.UUID        `json:"user_id"`
+	Resource      string             `json:"resource"`
+	State         string             `json:"state"`
+	StartedAt     pgtype.Timestamptz `json:"started_at"`
+	FinishedAt    pgtype.Timestamptz `json:"finished_at"`
+	LastSuccessAt pgtype.Timestamptz `json:"last_success_at"`
+	ErrorMessage  pgtype.Text        `json:"error_message"`
+}
+
+func (q *Queries) SetSyncStatus(ctx context.Context, arg SetSyncStatusParams) error {
+	_, err := q.db.Exec(ctx, setSyncStatus,
+		arg.UserID,
+		arg.Resource,
+		arg.State,
+		arg.StartedAt,
+		arg.FinishedAt,
+		arg.LastSuccessAt,
+		arg.ErrorMessage,
+	)
+	return err
 }
 
 const updateWebhookEventStatus = `-- name: UpdateWebhookEventStatus :exec
@@ -514,8 +667,8 @@ func (q *Queries) UpsertBodyMeasurement(ctx context.Context, arg UpsertBodyMeasu
 
 const upsertCycle = `-- name: UpsertCycle :exec
 
-INSERT INTO cycles (id, user_id, start_time, end_time, timezone_offset, strain, kilojoule, average_heart_rate, max_heart_rate, score_state, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+INSERT INTO cycles (id, user_id, start_time, end_time, timezone_offset, strain, kilojoule, average_heart_rate, max_heart_rate, score_state, step_count, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 ON CONFLICT (id, start_time) DO UPDATE SET
     end_time = EXCLUDED.end_time,
     timezone_offset = EXCLUDED.timezone_offset,
@@ -524,6 +677,7 @@ ON CONFLICT (id, start_time) DO UPDATE SET
     average_heart_rate = EXCLUDED.average_heart_rate,
     max_heart_rate = EXCLUDED.max_heart_rate,
     score_state = EXCLUDED.score_state,
+    step_count = EXCLUDED.step_count,
     updated_at = NOW()
 `
 
@@ -538,6 +692,7 @@ type UpsertCycleParams struct {
 	AverageHeartRate pgtype.Int4        `json:"average_heart_rate"`
 	MaxHeartRate     pgtype.Int4        `json:"max_heart_rate"`
 	ScoreState       pgtype.Text        `json:"score_state"`
+	StepCount        pgtype.Int4        `json:"step_count"`
 }
 
 // ---------------------------------------------------------------------------
@@ -555,6 +710,7 @@ func (q *Queries) UpsertCycle(ctx context.Context, arg UpsertCycleParams) error 
 		arg.AverageHeartRate,
 		arg.MaxHeartRate,
 		arg.ScoreState,
+		arg.StepCount,
 	)
 	return err
 }

@@ -36,8 +36,28 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Cursor timestamp (RFC3339)",
+                        "description": "Data inicial em Brasília (AAAA-MM-DD)",
+                        "name": "start",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data final inclusiva em Brasília (AAAA-MM-DD)",
+                        "name": "end",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor opaco da página anterior",
                         "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of records (default 50, max 200)",
+                        "name": "limit",
                         "in": "query"
                     }
                 ],
@@ -45,10 +65,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/github_com_arvind_whoop-stats_internal_db.Cycle"
-                            }
+                            "$ref": "#/definitions/internal_api.CyclesPage"
                         }
                     },
                     "400": {
@@ -101,6 +118,74 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/recoveries": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Fetches recoveries using cursor-based pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recoveries"
+                ],
+                "summary": "Get recoveries",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Data inicial em Brasília (AAAA-MM-DD)",
+                        "name": "start",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data final inclusiva em Brasília (AAAA-MM-DD)",
+                        "name": "end",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor opaco da página anterior",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of records (default 50, max 200)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.RecoveriesPage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/sleeps": {
             "get": {
                 "security": [
@@ -122,8 +207,28 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Cursor timestamp (RFC3339)",
+                        "description": "Data inicial em Brasília (AAAA-MM-DD)",
+                        "name": "start",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data final inclusiva em Brasília (AAAA-MM-DD)",
+                        "name": "end",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor opaco da página anterior",
                         "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of records (default 50, max 200)",
+                        "name": "limit",
                         "in": "query"
                     }
                 ],
@@ -131,10 +236,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/github_com_arvind_whoop-stats_internal_db.Sleep"
-                            }
+                            "$ref": "#/definitions/internal_api.SleepsPage"
                         }
                     },
                     "400": {
@@ -159,7 +261,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Enqueues a sync job for the user",
+                "description": "Enqueues a background sync job for the authenticated user",
                 "consumes": [
                     "application/json"
                 ],
@@ -188,6 +290,33 @@ const docTemplate = `{
                     },
                     "429": {
                         "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/sync/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "summary": "Consultar o estado persistido da sincronização",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_api.SyncStatusResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/internal_api.ErrorResponse"
                         }
@@ -257,8 +386,28 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Cursor timestamp (RFC3339)",
+                        "description": "Data inicial em Brasília (AAAA-MM-DD)",
+                        "name": "start",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Data final inclusiva em Brasília (AAAA-MM-DD)",
+                        "name": "end",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor opaco da página anterior",
                         "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of records (default 50, max 200)",
+                        "name": "limit",
                         "in": "query"
                     }
                 ],
@@ -266,10 +415,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/github_com_arvind_whoop-stats_internal_db.Workout"
-                            }
+                            "$ref": "#/definitions/internal_api.WorkoutsPage"
                         }
                     },
                     "400": {
@@ -310,14 +456,20 @@ const docTemplate = `{
                 "max_heart_rate": {
                     "type": "integer"
                 },
+                "score_state": {
+                    "type": "string"
+                },
                 "start_time": {
                     "type": "string"
+                },
+                "step_count": {
+                    "type": "integer"
                 },
                 "strain": {
                     "type": "number"
                 },
                 "timezone_offset": {
-                    "type": "string"
+                    "type": "object"
                 },
                 "updated_at": {
                     "type": "string"
@@ -327,11 +479,76 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_arvind_whoop-stats_internal_db.Sleep": {
+        "github_com_arvind_whoop-stats_internal_db.GetRecoveriesRow": {
             "type": "object",
             "properties": {
                 "created_at": {
                     "type": "string"
+                },
+                "cycle_end": {
+                    "type": "string"
+                },
+                "cycle_start": {
+                    "type": "string"
+                },
+                "hrv_rmssd_milli": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "recorded_at": {
+                    "type": "string"
+                },
+                "recovery_score": {
+                    "type": "number"
+                },
+                "reference_time": {
+                    "type": "string"
+                },
+                "resting_heart_rate": {
+                    "type": "number"
+                },
+                "score_state": {
+                    "type": "string"
+                },
+                "skin_temp_celsius": {
+                    "type": "number"
+                },
+                "sleep_id": {
+                    "type": "string"
+                },
+                "spo2_percentage": {
+                    "type": "number"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "timezone_offset": {
+                    "type": "object"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_calibrating": {
+                    "type": "boolean"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_arvind_whoop-stats_internal_db.Sleep": {
+            "type": "object",
+            "properties": {
+                "baseline_milli": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "cycle_id": {
+                    "type": "integer"
                 },
                 "disturbance_count": {
                     "type": "integer"
@@ -340,16 +557,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "nap": {
                     "type": "boolean"
+                },
+                "need_from_recent_nap_milli": {
+                    "type": "integer"
+                },
+                "need_from_recent_strain_milli": {
+                    "type": "integer"
                 },
                 "performance_score": {
                     "type": "number"
                 },
                 "respiratory_rate": {
                     "type": "number"
+                },
+                "score_state": {
+                    "type": "string"
                 },
                 "sleep_consistency_percentage": {
                     "type": "number"
@@ -367,7 +593,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "timezone_offset": {
-                    "type": "string"
+                    "type": "object"
                 },
                 "total_awake_time_milli": {
                     "type": "integer"
@@ -388,6 +614,32 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_arvind_whoop-stats_internal_db.SyncStatus": {
+            "type": "object",
+            "properties": {
+                "error_message": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "last_success_at": {
+                    "type": "string"
+                },
+                "resource": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "state": {
                     "type": "string"
                 },
                 "user_id": {
@@ -417,7 +669,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "kilojoule": {
                     "type": "number"
@@ -428,8 +680,14 @@ const docTemplate = `{
                 "percent_recorded": {
                     "type": "number"
                 },
+                "score_state": {
+                    "type": "string"
+                },
                 "sport_id": {
                     "type": "integer"
+                },
+                "sport_name": {
+                    "type": "string"
                 },
                 "start_time": {
                     "type": "string"
@@ -438,7 +696,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "timezone_offset": {
-                    "type": "string"
+                    "type": "object"
                 },
                 "updated_at": {
                     "type": "string"
@@ -466,6 +724,20 @@ const docTemplate = `{
                 }
             }
         },
+        "internal_api.CyclesPage": {
+            "type": "object",
+            "properties": {
+                "next_cursor": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_arvind_whoop-stats_internal_db.Cycle"
+                    }
+                }
+            }
+        },
         "internal_api.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -481,25 +753,74 @@ const docTemplate = `{
                     }
                 }
             }
-        }
-    },
-    "securityDefinitions": {
-        "BearerAuth": {
-            "type": "apiKey",
-            "name": "Authorization",
-            "in": "header"
+        },
+        "internal_api.RecoveriesPage": {
+            "type": "object",
+            "properties": {
+                "next_cursor": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_arvind_whoop-stats_internal_db.GetRecoveriesRow"
+                    }
+                }
+            }
+        },
+        "internal_api.SleepsPage": {
+            "type": "object",
+            "properties": {
+                "next_cursor": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_arvind_whoop-stats_internal_db.Sleep"
+                    }
+                }
+            }
+        },
+        "internal_api.SyncStatusResponse": {
+            "type": "object",
+            "properties": {
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_arvind_whoop-stats_internal_db.SyncStatus"
+                    }
+                },
+                "running": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_api.WorkoutsPage": {
+            "type": "object",
+            "properties": {
+                "next_cursor": {
+                    "type": "string"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_arvind_whoop-stats_internal_db.Workout"
+                    }
+                }
+            }
         }
     }
 }`
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "",
 	Host:             "",
 	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "WHOOP Stats API",
-	Description:      "High-performance RESTful API for WHOOP data.",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

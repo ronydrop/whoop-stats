@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/arvarik/whoop-go/whoop"
 	"github.com/arvind/whoop-stats/internal/auth"
 	"github.com/arvind/whoop-stats/internal/config"
 	"github.com/arvind/whoop-stats/internal/storage"
+	"github.com/arvind/whoop-stats/internal/whoopdata"
 	"golang.org/x/time/rate"
 )
 
@@ -34,6 +34,7 @@ type Poller struct {
 	limiter *rate.Limiter
 
 	lastOffpeakSleepPoll time.Time
+	runMu                sync.Mutex
 }
 
 // NewPoller creates a new Poller. The rate limiter allows 2 requests per second
@@ -123,7 +124,7 @@ func (p *Poller) pollLoop(ctx context.Context, name string, interval time.Durati
 		start := time.Now()
 		p.logger.Info("Starting poll run", "task", name)
 
-		if err := pollFunc(ctx); err != nil {
+		if err := p.runScheduled(ctx, name, pollFunc); err != nil {
 			p.logger.Error("Poll run failed", "task", name, "error", err, "duration", time.Since(start))
 		} else {
 			p.logger.Info("Poll run succeeded", "task", name, "duration", time.Since(start))
@@ -139,24 +140,72 @@ func (p *Poller) pollLoop(ctx context.Context, name string, interval time.Durati
 }
 
 // RunAdHocSync performs a one-off sync of all data types. Used by the /sync endpoint.
-func (p *Poller) RunAdHocSync(ctx context.Context, whoopUserID string) {
-	p.logger.Info("Starting ad-hoc sync", "user_id", whoopUserID)
-
-	for _, step := range []struct {
-		name string
-		fn   func(context.Context) error
-	}{
-		{"cycles_recoveries", p.pollCyclesAndRecoveries},
-		{"workouts", p.pollWorkouts},
-		{"sleeps", p.pollSleeps},
-		{"profile", p.pollUserProfile},
-	} {
-		if err := step.fn(ctx); err != nil {
-			p.logger.Error("Ad-hoc sync step failed", "step", step.name, "error", err)
+func (p *Poller) StartAdHocSync(ctx context.Context) bool {
+	if !p.runMu.TryLock() {
+		return false
+	}
+	go func() {
+		defer p.runMu.Unlock()
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+		defer cancel()
+		for _, step := range []struct {
+			name string
+			fn   func(context.Context) error
+		}{
+			{"cycles_recoveries", p.pollCyclesAndRecoveries}, {"workouts", p.pollWorkouts}, {"sleeps", p.pollSleeps}, {"profile", p.pollUserProfile},
+		} {
+			if err := p.runTracked(ctx, step.name, step.fn); err != nil {
+				p.logger.Error("Falha na sincronização", "resource", step.name, "error", err)
+			}
+		}
+	}()
+	return true
+}
+func (p *Poller) Busy() bool {
+	if !p.runMu.TryLock() {
+		return true
+	}
+	p.runMu.Unlock()
+	return false
+}
+func (p *Poller) runScheduled(ctx context.Context, name string, fn func(context.Context) error) error {
+	p.runMu.Lock()
+	defer p.runMu.Unlock()
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if name == "sleeps" {
+		location, _ := time.LoadLocation("America/Sao_Paulo")
+		hour := time.Now().In(location).Hour()
+		if hour < 6 || hour > 12 {
+			interval, err := time.ParseDuration(p.cfg.PollIntervalSleepOffpeak)
+			if err != nil {
+				interval = 4 * time.Hour
+			}
+			if time.Since(p.lastOffpeakSleepPoll) < interval {
+				return nil
+			}
 		}
 	}
-
-	p.logger.Info("Ad-hoc sync completed", "user_id", whoopUserID)
+	err := p.runTracked(ctx, name, fn)
+	if err == nil && name == "sleeps" {
+		p.lastOffpeakSleepPoll = time.Now()
+	}
+	return err
+}
+func (p *Poller) runTracked(ctx context.Context, name string, fn func(context.Context) error) error {
+	started := time.Now()
+	if err := p.storage.SetSyncStatus(ctx, p.whoopUserID, name, "running", started, nil); err != nil {
+		return err
+	}
+	runErr := fn(ctx)
+	state := "success"
+	if runErr != nil {
+		state = "error"
+	}
+	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	return errors.Join(runErr, p.storage.SetSyncStatus(finishCtx, p.whoopUserID, name, state, started, runErr))
 }
 
 func (p *Poller) pollCyclesAndRecoveries(ctx context.Context) error {
@@ -173,7 +222,7 @@ func (p *Poller) pollCyclesAndRecoveries(ctx context.Context) error {
 	if err := p.waitForRateLimit(ctx, "cycles"); err != nil {
 		return err
 	}
-	cyclesPage, err := client.Cycle.List(ctx, nil)
+	cyclesPage, err := whoopdata.List[whoopdata.Cycle](ctx, client, "/cycle", "")
 	totalCycles := 0
 	for page := 1; ; page++ {
 		if err != nil {
@@ -183,15 +232,19 @@ func (p *Poller) pollCyclesAndRecoveries(ctx context.Context) error {
 		p.logger.Debug("Processing cycles page", "page", page, "records", len(cyclesPage.Records))
 
 		if err := p.storage.UpsertCycles(ctx, internalUserID, cyclesPage.Records); err != nil {
-			p.logger.Error("Failed to batch upsert cycles", "error", err)
+			return fmt.Errorf("persistindo cycles: %w", err)
 		}
 
-		cyclesPage, err = cyclesPage.NextPage(ctx)
-		if errors.Is(err, whoop.ErrNoNextPage) {
+		if cyclesPage.NextToken == "" {
 			break
 		}
 		if err := p.waitForRateLimit(ctx, "cycles_next"); err != nil {
 			return err
+		}
+		nextToken := cyclesPage.NextToken
+		cyclesPage, err = whoopdata.List[whoopdata.Cycle](ctx, client, "/cycle", nextToken)
+		if err == nil && cyclesPage.NextToken == nextToken {
+			return errors.New("A paginação WHOOP não avançou.")
 		}
 	}
 	p.logger.Info("Cycles sync completed", "total", totalCycles)
@@ -200,7 +253,7 @@ func (p *Poller) pollCyclesAndRecoveries(ctx context.Context) error {
 	if err := p.waitForRateLimit(ctx, "recoveries"); err != nil {
 		return err
 	}
-	recoveriesPage, err := client.Recovery.List(ctx, nil)
+	recoveriesPage, err := whoopdata.List[whoopdata.Recovery](ctx, client, "/recovery", "")
 	totalRecoveries := 0
 	for page := 1; ; page++ {
 		if err != nil {
@@ -210,15 +263,19 @@ func (p *Poller) pollCyclesAndRecoveries(ctx context.Context) error {
 		p.logger.Debug("Processing recoveries page", "page", page, "records", len(recoveriesPage.Records))
 
 		if err := p.storage.UpsertRecoveries(ctx, internalUserID, recoveriesPage.Records); err != nil {
-			p.logger.Error("Failed to batch upsert recoveries", "error", err)
+			return fmt.Errorf("persistindo recoveries: %w", err)
 		}
 
-		recoveriesPage, err = recoveriesPage.NextPage(ctx)
-		if errors.Is(err, whoop.ErrNoNextPage) {
+		if recoveriesPage.NextToken == "" {
 			break
 		}
 		if err := p.waitForRateLimit(ctx, "recoveries_next"); err != nil {
 			return err
+		}
+		nextToken := recoveriesPage.NextToken
+		recoveriesPage, err = whoopdata.List[whoopdata.Recovery](ctx, client, "/recovery", nextToken)
+		if err == nil && recoveriesPage.NextToken == nextToken {
+			return errors.New("A paginação WHOOP não avançou.")
 		}
 	}
 	p.logger.Info("Recoveries sync completed", "total", totalRecoveries)
@@ -239,7 +296,7 @@ func (p *Poller) pollWorkouts(ctx context.Context) error {
 	if err := p.waitForRateLimit(ctx, "workouts"); err != nil {
 		return err
 	}
-	workoutsPage, err := client.Workout.List(ctx, nil)
+	workoutsPage, err := whoopdata.List[whoopdata.Workout](ctx, client, "/activity/workout", "")
 	totalWorkouts := 0
 	for page := 1; ; page++ {
 		if err != nil {
@@ -249,15 +306,19 @@ func (p *Poller) pollWorkouts(ctx context.Context) error {
 		p.logger.Debug("Processing workouts page", "page", page, "records", len(workoutsPage.Records))
 
 		if err := p.storage.UpsertWorkouts(ctx, internalUserID, workoutsPage.Records); err != nil {
-			p.logger.Error("Failed to batch upsert workouts", "error", err)
+			return fmt.Errorf("persistindo workouts: %w", err)
 		}
 
-		workoutsPage, err = workoutsPage.NextPage(ctx)
-		if errors.Is(err, whoop.ErrNoNextPage) {
+		if workoutsPage.NextToken == "" {
 			break
 		}
 		if err := p.waitForRateLimit(ctx, "workouts_next"); err != nil {
 			return err
+		}
+		nextToken := workoutsPage.NextToken
+		workoutsPage, err = whoopdata.List[whoopdata.Workout](ctx, client, "/activity/workout", nextToken)
+		if err == nil && workoutsPage.NextToken == nextToken {
+			return errors.New("A paginação WHOOP não avançou.")
 		}
 	}
 	p.logger.Info("Workouts sync completed", "total", totalWorkouts)
@@ -265,20 +326,6 @@ func (p *Poller) pollWorkouts(ctx context.Context) error {
 }
 
 func (p *Poller) pollSleeps(ctx context.Context) error {
-	// Adaptive polling: more frequent during peak sleep-data hours (6 AM – 12 PM)
-	hour := time.Now().Hour()
-	isPeak := hour >= 6 && hour <= 12
-	if !isPeak {
-		offpeakInterval, err := time.ParseDuration(p.cfg.PollIntervalSleepOffpeak)
-		if err != nil {
-			offpeakInterval = 4 * time.Hour
-		}
-		if time.Since(p.lastOffpeakSleepPoll) < offpeakInterval {
-			p.logger.Debug("Skipping sleep poll (off-peak, interval not reached)", "last_run", p.lastOffpeakSleepPoll)
-			return nil
-		}
-		p.lastOffpeakSleepPoll = time.Now()
-	}
 
 	client, err := p.authManager.GetClient(ctx, p.whoopUserID)
 	if err != nil {
@@ -292,7 +339,7 @@ func (p *Poller) pollSleeps(ctx context.Context) error {
 	if err := p.waitForRateLimit(ctx, "sleeps"); err != nil {
 		return err
 	}
-	sleepsPage, err := client.Sleep.List(ctx, nil)
+	sleepsPage, err := whoopdata.List[whoopdata.Sleep](ctx, client, "/activity/sleep", "")
 	totalSleeps := 0
 	for page := 1; ; page++ {
 		if err != nil {
@@ -302,15 +349,19 @@ func (p *Poller) pollSleeps(ctx context.Context) error {
 		p.logger.Debug("Processing sleeps page", "page", page, "records", len(sleepsPage.Records))
 
 		if err := p.storage.UpsertSleeps(ctx, internalUserID, sleepsPage.Records); err != nil {
-			p.logger.Error("Failed to batch upsert sleeps", "error", err)
+			return fmt.Errorf("persistindo sleeps: %w", err)
 		}
 
-		sleepsPage, err = sleepsPage.NextPage(ctx)
-		if errors.Is(err, whoop.ErrNoNextPage) {
+		if sleepsPage.NextToken == "" {
 			break
 		}
 		if err := p.waitForRateLimit(ctx, "sleeps_next"); err != nil {
 			return err
+		}
+		nextToken := sleepsPage.NextToken
+		sleepsPage, err = whoopdata.List[whoopdata.Sleep](ctx, client, "/activity/sleep", nextToken)
+		if err == nil && sleepsPage.NextToken == nextToken {
+			return errors.New("A paginação WHOOP não avançou.")
 		}
 	}
 	p.logger.Info("Sleeps sync completed", "total", totalSleeps)

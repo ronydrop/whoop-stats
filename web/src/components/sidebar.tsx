@@ -1,84 +1,27 @@
 "use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { cn } from "@/lib/utils";
-import {
-  LayoutDashboard,
-  HeartPulse,
-  Moon,
-  Flame,
-  Dumbbell,
-  ChevronsLeft,
-  ChevronsRight,
-} from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { LayoutDashboard, HeartPulse, Moon, Flame, Dumbbell, Activity, ShieldCheck, NotebookPen, TrendingUp, Radio } from "lucide-react";
 
-const navItems = [
+const items = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
   { href: "/recovery", label: "Recuperação", icon: HeartPulse },
   { href: "/sleep", label: "Sono", icon: Moon },
   { href: "/strain", label: "Esforço", icon: Flame },
+  { href: "/stress", label: "Estresse", icon: Activity },
   { href: "/workouts", label: "Treinos", icon: Dumbbell },
+  { href: "/journal", label: "Diário", icon: NotebookPen },
+  { href: "/fitness", label: "Condicionamento", icon: TrendingUp },
+  { href: "/live", label: "Ao vivo", icon: Radio },
 ];
-
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
-
-  return (
-    <aside
-      className={cn(
-        "hidden md:flex flex-col h-screen sticky top-0 border-r border-border-subtle bg-surface-0/50 backdrop-blur-xl transition-all duration-300 z-30",
-        collapsed ? "w-[68px]" : "w-[220px]"
-      )}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-border-subtle">
-        <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center flex-shrink-0">
-          <span className="text-accent font-bold text-sm">W</span>
-        </div>
-        {!collapsed && (
-          <span className="text-sm font-semibold text-text-primary tracking-tight truncate">
-            WHOOP em Português
-          </span>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 py-3 px-2 space-y-0.5">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group",
-                isActive
-                  ? "bg-accent-muted text-text-primary"
-                  : "text-text-secondary hover:text-text-primary hover:bg-surface-1"
-              )}
-            >
-              <item.icon
-                className={cn(
-                  "w-[18px] h-[18px] flex-shrink-0 transition-colors",
-                  isActive ? "text-accent" : "text-text-tertiary group-hover:text-text-secondary"
-                )}
-              />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center h-10 mx-2 mb-3 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-1 transition-colors"
-      >
-        {collapsed ? <ChevronsRight className="w-4 h-4" /> : <ChevronsLeft className="w-4 h-4" />}
-      </button>
-    </aside>
-  );
+  const search = useSearchParams();
+  const selection = new URLSearchParams();
+  for (const key of ["start", "end", "first", "compare"]) { const value = search.get(key); if (value) selection.set(key, value); }
+  return <aside className="hidden md:flex sticky top-0 h-screen w-[112px] shrink-0 flex-col items-center border-r border-border-subtle bg-[#141414] py-6 z-30">
+    <div className="flex flex-col items-center gap-2 mb-10" aria-label="WHOOP pessoal"><div className="flex size-11 items-center justify-center rounded-2xl bg-accent text-white"><Activity className="size-6" /></div><span className="text-[10px] font-semibold tracking-[.18em]">WHOOP</span></div>
+    <nav aria-label="Navegação principal" className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto px-3 [color-scheme:dark] [scrollbar-width:thin]">{items.map(item => <Link key={item.href} href={`${item.href}${selection.size ? `?${selection}` : ""}`} aria-current={pathname === item.href || pathname.startsWith(`${item.href}/`) ? "page" : undefined} className="flex shrink-0 flex-col items-center gap-2 rounded-2xl py-3 text-text-muted transition-colors hover:bg-surface-1 hover:text-text-primary aria-[current=page]:bg-accent-muted aria-[current=page]:text-accent-hover"><item.icon className="size-5" /><span className="text-[10px] font-medium">{item.label}</span></Link>)}</nav>
+    <div className="flex flex-col items-center gap-2 text-text-muted"><ShieldCheck className="size-4" /><span className="text-[9px]">Pessoal · Local</span></div>
+  </aside>;
 }

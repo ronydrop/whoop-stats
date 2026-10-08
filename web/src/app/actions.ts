@@ -1,26 +1,20 @@
 "use server";
-
 import { client } from "@/lib/api/client";
-import { revalidatePath } from "next/cache";
 
-/**
- * Server action to trigger an ad-hoc data sync with the WHOOP API.
- * Revalidates all dashboard routes after a successful sync so the UI
- * reflects the latest data.
- */
 export async function syncWhoopData() {
-  const { data, error, response } = await client.POST("/api/v1/sync");
-
-  if (error || !response.ok) {
-    throw new Error(error?.error?.message || "Não foi possível iniciar a sincronização");
+  try {
+    const { response } = await client.POST("/api/v1/sync");
+    if (response.ok) return { ok: true, message: "" };
+    const message = response.status === 429 ? "Aguarde cinco minutos entre sincronizações manuais."
+      : response.status === 409 ? "Já existe uma atualização em andamento."
+      : "Não foi possível iniciar a sincronização. Confira a conexão e tente novamente.";
+    return { ok: false, message };
+  } catch {
+    return { ok: false, message: "Não foi possível conectar ao servidor local. Abra o painel pelo atalho e tente novamente." };
   }
-
-  // Revalidate all dashboard routes to reflect fresh data
-  revalidatePath("/");
-  revalidatePath("/recovery");
-  revalidatePath("/sleep");
-  revalidatePath("/strain");
-  revalidatePath("/workouts");
-
+}
+export async function getSyncStatus() {
+  const { data, response } = await client.GET("/api/v1/sync/status", { cache: "no-store" });
+  if (!response.ok || !data) throw new Error("Não foi possível consultar a sincronização.");
   return data;
 }

@@ -84,6 +84,10 @@ func main() {
 	logger.Info("Connected to TimescaleDB")
 
 	queries := db.New(dbPool)
+	if err := queries.InterruptSyncStatus(ctx); err != nil {
+		logger.Error("Aplique as migrações antes de iniciar", "error", err)
+		os.Exit(1)
+	}
 	store := storage.NewStorage(dbPool, logger)
 	authManager := auth.NewManager(cfg, queries, logger)
 

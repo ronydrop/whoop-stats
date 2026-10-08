@@ -7,10 +7,10 @@ import (
 
 func TestParseTimezoneOffset(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          string
-		wantValid      bool
-		wantMicrosecs  int64
+		name          string
+		input         string
+		wantValid     bool
+		wantMicrosecs int64
 	}{
 		{
 			name:          "UTC (Z)",

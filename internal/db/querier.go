@@ -23,12 +23,15 @@ type Querier interface {
 	// ---------------------------------------------------------------------------
 	GetDailyStrain(ctx context.Context, arg GetDailyStrainParams) ([]DailyStrain, error)
 	GetPendingWebhookEvents(ctx context.Context, limit int32) ([]WebhookEvent, error)
-	GetRecoveries(ctx context.Context, arg GetRecoveriesParams) ([]Recovery, error)
+	GetRecoveries(ctx context.Context, arg GetRecoveriesParams) ([]GetRecoveriesRow, error)
 	GetSleeps(ctx context.Context, arg GetSleepsParams) ([]Sleep, error)
+	GetSyncStatus(ctx context.Context, userID pgtype.UUID) ([]SyncStatus, error)
 	GetUser(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserByWhoopID(ctx context.Context, whoopUserID string) (User, error)
 	GetUserProfile(ctx context.Context, id pgtype.UUID) (UserProfile, error)
 	GetWorkouts(ctx context.Context, arg GetWorkoutsParams) ([]Workout, error)
+	InterruptSyncStatus(ctx context.Context) error
+	SetSyncStatus(ctx context.Context, arg SetSyncStatusParams) error
 	UpdateWebhookEventStatus(ctx context.Context, arg UpdateWebhookEventStatusParams) error
 	UpdateWebhookEventStatuses(ctx context.Context, arg UpdateWebhookEventStatusesParams) error
 	UpsertBodyMeasurement(ctx context.Context, arg UpsertBodyMeasurementParams) error

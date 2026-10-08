@@ -2,6 +2,10 @@
 import { formatNumber } from "@/lib/format";
 
 import { MetricCard } from "@/components/metric-card";
+import { MetricHistory } from "@/components/metric-visual";
+import { metric } from "@/lib/metrics";
+import { formatRecordInterval } from "@/lib/format";
+import type { Recovery } from "@/lib/types";
 import { DetailPopup, DetailRow, useDetailPopup } from "@/components/detail-popup";
 import { HeartPulse, Wind, Thermometer, Activity, TrendingUp, TrendingDown } from "lucide-react";
 
@@ -11,10 +15,8 @@ interface PanelData {
   spo2: number | null;
   skinTemp: number | null;
   recoveryScore: number | null;
-  avg7dHRV: number | null;
-  avg30dHRV: number | null;
-  avg7dRHR: number | null;
-  avg30dRHR: number | null;
+  avgPeriodHRV: number | null;
+  avgPeriodRHR: number | null;
   hrvStdDev: number | null;
   rhrStdDev: number | null;
   hrvMin: number | null;
@@ -29,8 +31,7 @@ interface PanelData {
   recoveryDelta: number | null;
   hrvDelta: number | null;
   rhrDelta: number | null;
-  avg7dRecovery: number | null;
-  avg30dRecovery: number | null;
+  avgPeriodRecovery: number | null;
   greenDays: number;
   yellowDays: number;
   redDays: number;
@@ -46,51 +47,56 @@ function Delta({ value, unit, invertColor }: { value: number | null; unit: strin
   return (
     <span className={`flex items-center gap-0.5 text-[10px] ${color}`}>
       {Icon && <Icon className="w-3 h-3" />}
-      {value > 0 ? "+" : ""}{formatNumber(value, 1)}{unit} desde ontem
+      {value > 0 ? "+" : ""}{formatNumber(value, 1)}{unit} desde o registro anterior
     </span>
   );
 }
 
-export function RecoveryPanels({ data: d }: { data: PanelData }) {
+export function RecoveryPanels({ data: d, records }: { data: PanelData; records: Recovery[] }) {
   const { popup, open, close } = useDetailPopup();
+  const history = (field: string) => [...records].reverse().map(r => ({ date: r.reference_time ?? r.recorded_at, label: r.reference_time ? formatRecordInterval(r.reference_time, r.reference_time) : `Registrado na WHOOP: ${formatRecordInterval(r.recorded_at, r.recorded_at)}`, value: metric(r, field) }));
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
         <MetricCard
           title="VFC"
-          value={d.hrv ? `${formatNumber(d.hrv, 0)} ms` : "--"}
+          value={d.hrv != null ? `${formatNumber(d.hrv, 0)} ms` : "--"}
           subtitle={<Delta value={d.hrvDelta} unit=" ms" />}
           icon={<HeartPulse className="w-4 h-4" />}
           accentColor="green"
+          visual={<MetricHistory points={history("hrv_rmssd_milli")} label="VFC por registro" unit=" ms" />}
           onClick={() => open("hrv")}
         />
         <MetricCard
           title="FC em repouso"
-          value={d.rhr ? `${formatNumber(d.rhr, 0)} bpm` : "--"}
+          value={d.rhr != null ? `${formatNumber(d.rhr, 0)} bpm` : "--"}
           subtitle={<Delta value={d.rhrDelta} unit=" bpm" invertColor />}
           icon={<Activity className="w-4 h-4" />}
           accentColor="blue"
+          visual={<MetricHistory points={history("resting_heart_rate")} label="FC por registro" unit=" bpm" />}
           onClick={() => open("rhr")}
         />
         <MetricCard
           title="SpO2"
-          value={d.spo2 ? `${formatNumber(d.spo2, 1)}%` : "--"}
+          value={d.spo2 != null ? `${formatNumber(d.spo2, 1)}%` : "--"}
           subtitle="Oxigenação do sangue"
           icon={<Wind className="w-4 h-4" />}
           accentColor="violet"
+          visual={<MetricHistory points={history("spo2_percentage")} label="SpO2 por registro" unit="%" max={100} />}
           onClick={() => open("spo2")}
         />
         <MetricCard
           title="Temperatura da pele"
-          value={d.skinTemp ? `${formatNumber(d.skinTemp, 1)}°C` : "--"}
+          value={d.skinTemp != null ? `${formatNumber(d.skinTemp, 1)}°C` : "--"}
           subtitle={d.skinTempDeviation != null ? (
             <span className={Math.abs(d.skinTempDeviation) > 0.5 ? "text-amber-400 text-[10px]" : "text-text-muted text-[10px]"}>
-              {d.skinTempDeviation > 0 ? "+" : ""}{formatNumber(d.skinTempDeviation, 1)}°C em relação à referência pessoal
+              {d.skinTempDeviation > 0 ? "+" : ""}{formatNumber(d.skinTempDeviation, 1)}°C em relação à média da seleção
             </span>
           ) : "Temperatura da pele"}
           icon={<Thermometer className="w-4 h-4" />}
           accentColor="yellow"
+          visual={<MetricHistory points={history("skin_temp_celsius")} label="Temperatura por registro" unit="°C" />}
           onClick={() => open("skinTemp")}
         />
       </div>
@@ -99,25 +105,14 @@ export function RecoveryPanels({ data: d }: { data: PanelData }) {
       {popup === "hrv" && (
         <DetailPopup title="Variabilidade da frequência cardíaca" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            A VFC mede a variação do intervalo entre batimentos cardíacos. Valores maiores geralmente indicam melhor condicionamento cardiovascular e recuperação.
+            VFC em RMSSD fornecida pela WHOOP. As comparações abaixo usam os registros disponíveis.
           </p>
-          <DetailRow label="VFC atual" value={d.hrv ? `${formatNumber(d.hrv, 1)} ms` : "--"} />
-          <DetailRow label="Variação desde ontem" value={d.hrvDelta != null ? `${d.hrvDelta > 0 ? "+" : ""}${formatNumber(d.hrvDelta, 1)} ms` : "--"} />
-          <DetailRow label="Média de 7 dias" value={d.avg7dHRV ? `${formatNumber(d.avg7dHRV, 1)} ms` : "--"} />
-          <DetailRow label="Média de 30 dias" value={d.avg30dHRV ? `${formatNumber(d.avg30dHRV, 1)} ms` : "--"} hint="Sua referência pessoal" />
-          <DetailRow label="Variabilidade (σ)" value={d.hrvStdDev ? `±${formatNumber(d.hrvStdDev, 1)} ms` : "--"} hint="Desvio padrão — valores menores indicam maior regularidade" />
-          <DetailRow label="Faixa de 30 dias" value={d.hrvMin != null && d.hrvMax != null ? `${formatNumber(d.hrvMin, 0)} – ${formatNumber(d.hrvMax, 0)} ms` : "--"} />
-          {d.hrv && d.avg30dHRV && (
-            <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
-              <p className="text-xs text-text-secondary">
-                {d.hrv > d.avg30dHRV * 1.1
-                  ? "Sua VFC está acima da referência de 30 dias — ótima recuperação!"
-                  : d.hrv < d.avg30dHRV * 0.9
-                    ? "Sua VFC está abaixo da referência pessoal — considere um treino mais leve."
-                    : "Sua VFC está dentro da sua faixa habitual."}
-              </p>
-            </div>
-          )}
+          <DetailRow label="VFC atual" value={d.hrv != null ? `${formatNumber(d.hrv, 1)} ms` : "--"} />
+          <DetailRow label="Variação desde o registro anterior" value={d.hrvDelta != null ? `${d.hrvDelta > 0 ? "+" : ""}${formatNumber(d.hrvDelta, 1)} ms` : "--"} />
+          <DetailRow label="Média do período" value={d.avgPeriodHRV != null ? `${formatNumber(d.avgPeriodHRV, 1)} ms` : "--"} hint="Média aritmética dos registros disponíveis" />
+          <DetailRow label="Variabilidade (σ)" value={d.hrvStdDev != null ? `±${formatNumber(d.hrvStdDev, 1)} ms` : "--"} hint="Desvio padrão — valores menores indicam maior regularidade" />
+          <DetailRow label="Faixa do período" value={d.hrvMin != null && d.hrvMax != null ? `${formatNumber(d.hrvMin, 0)} – ${formatNumber(d.hrvMax, 0)} ms` : "--"} />
+
         </DetailPopup>
       )}
 
@@ -125,25 +120,14 @@ export function RecoveryPanels({ data: d }: { data: PanelData }) {
       {popup === "rhr" && (
         <DetailPopup title="Frequência cardíaca em repouso" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            Uma frequência cardíaca em repouso menor geralmente indica melhor condicionamento cardiovascular. Uma frequência elevada pode indicar estresse, doença ou excesso de treino.
+            Frequência cardíaca em repouso fornecida pela WHOOP. A média, a faixa e a variação são calculadas com os registros disponíveis.
           </p>
-          <DetailRow label="FC em repouso atual" value={d.rhr ? `${formatNumber(d.rhr, 0)} bpm` : "--"} />
-          <DetailRow label="Variação desde ontem" value={d.rhrDelta != null ? `${d.rhrDelta > 0 ? "+" : ""}${formatNumber(d.rhrDelta, 1)} bpm` : "--"} />
-          <DetailRow label="Média de 7 dias" value={d.avg7dRHR ? `${formatNumber(d.avg7dRHR, 1)} bpm` : "--"} />
-          <DetailRow label="Média de 30 dias" value={d.avg30dRHR ? `${formatNumber(d.avg30dRHR, 1)} bpm` : "--"} hint="Sua referência pessoal" />
-          <DetailRow label="Variabilidade (σ)" value={d.rhrStdDev ? `±${formatNumber(d.rhrStdDev, 1)} bpm` : "--"} />
-          <DetailRow label="Faixa de 30 dias" value={d.rhrMin != null && d.rhrMax != null ? `${formatNumber(d.rhrMin, 0)} – ${formatNumber(d.rhrMax, 0)} bpm` : "--"} />
-          {d.rhr && d.avg30dRHR && (
-            <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
-              <p className="text-xs text-text-secondary">
-                {d.rhr > d.avg30dRHR + 3
-                  ? "Sua FC em repouso está elevada — isso pode estar relacionado a estresse, desidratação ou doença."
-                  : d.rhr < d.avg30dRHR - 3
-                    ? "Sua FC em repouso está abaixo da referência pessoal — excelente recuperação cardiovascular!"
-                    : "Sua FC em repouso está dentro da sua faixa habitual."}
-              </p>
-            </div>
-          )}
+          <DetailRow label="FC em repouso atual" value={d.rhr != null ? `${formatNumber(d.rhr, 0)} bpm` : "--"} />
+          <DetailRow label="Variação desde o registro anterior" value={d.rhrDelta != null ? `${d.rhrDelta > 0 ? "+" : ""}${formatNumber(d.rhrDelta, 1)} bpm` : "--"} />
+          <DetailRow label="Média do período" value={d.avgPeriodRHR != null ? `${formatNumber(d.avgPeriodRHR, 1)} bpm` : "--"} hint="Média aritmética dos registros disponíveis" />
+          <DetailRow label="Variabilidade (σ)" value={d.rhrStdDev != null ? `±${formatNumber(d.rhrStdDev, 1)} bpm` : "--"} />
+          <DetailRow label="Faixa do período" value={d.rhrMin != null && d.rhrMax != null ? `${formatNumber(d.rhrMin, 0)} – ${formatNumber(d.rhrMax, 0)} bpm` : "--"} />
+
         </DetailPopup>
       )}
 
@@ -151,20 +135,12 @@ export function RecoveryPanels({ data: d }: { data: PanelData }) {
       {popup === "spo2" && (
         <DetailPopup title="Oxigenação do sangue (SpO2)" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            A SpO2 mede a saturação de oxigênio no sangue. Valores habituais ficam entre 95% e 100%. Valores abaixo de 95% podem indicar problemas respiratórios.
+            A SpO2 mede a saturação de oxigênio no sangue. O painel apresenta a medição fornecida pela WHOOP e os valores disponíveis no período.
           </p>
-          <DetailRow label="SpO2 atual" value={d.spo2 ? `${formatNumber(d.spo2, 1)}%` : "--"} />
-          <DetailRow label="SpO2 média" value={d.avgSpo2 ? `${formatNumber(d.avgSpo2, 1)}%` : "--"} />
-          <DetailRow label="Menor valor registrado" value={d.minSpo2 ? `${formatNumber(d.minSpo2, 1)}%` : "--"} hint="Menor valor no período" />
-          {d.spo2 && (
-            <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
-              <p className="text-xs text-text-secondary">
-                {d.spo2 >= 97 ? "Excelente oxigenação do sangue."
-                  : d.spo2 >= 95 ? "Oxigenação do sangue dentro da faixa habitual."
-                    : "SpO2 abaixo de 95% — considere consultar um médico se isso persistir."}
-              </p>
-            </div>
-          )}
+          <DetailRow label="SpO2 atual" value={d.spo2 != null ? `${formatNumber(d.spo2, 1)}%` : "--"} />
+          <DetailRow label="SpO2 média" value={d.avgSpo2 != null ? `${formatNumber(d.avgSpo2, 1)}%` : "--"} />
+          <DetailRow label="Menor valor registrado" value={d.minSpo2 != null ? `${formatNumber(d.minSpo2, 1)}%` : "--"} hint="Menor valor no período" />
+
         </DetailPopup>
       )}
 
@@ -172,21 +148,13 @@ export function RecoveryPanels({ data: d }: { data: PanelData }) {
       {popup === "skinTemp" && (
         <DetailPopup title="Temperatura da pele" onClose={close}>
           <p className="text-xs text-text-tertiary mb-4">
-            A temperatura da pele pode indicar estresse fisiológico, início de doença ou alterações hormonais. Acompanhe os desvios em relação à sua referência pessoal.
+            Temperatura da pele fornecida pela WHOOP. O desvio exibido compara o registro com a média aritmética da seleção.
           </p>
-          <DetailRow label="Atual" value={d.skinTemp ? `${formatNumber(d.skinTemp, 2)}°C` : "--"} />
-          <DetailRow label="Referência pessoal" value={d.avgSkinTemp ? `${formatNumber(d.avgSkinTemp, 2)}°C` : "--"} />
-          <DetailRow label="Desvio" value={d.skinTempDeviation != null ? `${d.skinTempDeviation > 0 ? "+" : ""}${formatNumber(d.skinTempDeviation, 2)}°C` : "--"} hint="Em relação à sua referência pessoal" />
-          <DetailRow label="Variabilidade (σ)" value={d.skinTempStdDev ? `±${formatNumber(d.skinTempStdDev, 2)}°C` : "--"} />
-          {d.skinTempDeviation != null && (
-            <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
-              <p className="text-xs text-text-secondary">
-                {Math.abs(d.skinTempDeviation) > 0.5
-                  ? `A temperatura da sua pele está ${d.skinTempDeviation > 0 ? "elevada" : "mais baixa"} — isso pode indicar ${d.skinTempDeviation > 0 ? "início de doença, estresse ou alterações hormonais" : "melhor recuperação ou ambiente de sono mais fresco"}.`
-                  : "A temperatura da sua pele está dentro da faixa habitual."}
-              </p>
-            </div>
-          )}
+          <DetailRow label="Atual" value={d.skinTemp != null ? `${formatNumber(d.skinTemp, 2)}°C` : "--"} />
+          <DetailRow label="Média dos registros" value={d.avgSkinTemp != null ? `${formatNumber(d.avgSkinTemp, 2)}°C` : "--"} />
+          <DetailRow label="Desvio" value={d.skinTempDeviation != null ? `${d.skinTempDeviation > 0 ? "+" : ""}${formatNumber(d.skinTempDeviation, 2)}°C` : "--"} hint="Em relação à média da seleção" />
+          <DetailRow label="Variabilidade (σ)" value={d.skinTempStdDev != null ? `±${formatNumber(d.skinTempStdDev, 2)}°C` : "--"} />
+
         </DetailPopup>
       )}
     </>

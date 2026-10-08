@@ -7,7 +7,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/arvind/whoop-stats/internal/whoopdata"
 	"log/slog"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -129,7 +131,7 @@ func (w *Worker) processEvent(ctx context.Context, record db.WebhookEvent) error
 			return fmt.Errorf("invalid recovery ID %q: %w", event.ID, err)
 		}
 		traceLogger.Info("Fetching updated recovery", "cycle_id", objectID)
-		obj, err := client.Recovery.GetByID(ctx, objectID)
+		obj, err := whoopdata.Get[whoopdata.Recovery](ctx, client, fmt.Sprintf("/cycle/%d/recovery", objectID))
 		if err != nil {
 			return fmt.Errorf("fetching recovery: %w", err)
 		}
@@ -141,7 +143,7 @@ func (w *Worker) processEvent(ctx context.Context, record db.WebhookEvent) error
 			return fmt.Errorf("invalid cycle ID %q: %w", event.ID, err)
 		}
 		traceLogger.Info("Fetching updated cycle", "cycle_id", objectID)
-		obj, err := client.Cycle.GetByID(ctx, objectID)
+		obj, err := whoopdata.Get[whoopdata.Cycle](ctx, client, fmt.Sprintf("/cycle/%d", objectID))
 		if err != nil {
 			return fmt.Errorf("fetching cycle: %w", err)
 		}
@@ -149,7 +151,7 @@ func (w *Worker) processEvent(ctx context.Context, record db.WebhookEvent) error
 
 	case "workout.updated":
 		traceLogger.Info("Fetching updated workout", "workout_id", event.ID)
-		obj, err := client.Workout.GetByID(ctx, event.ID)
+		obj, err := whoopdata.Get[whoopdata.Workout](ctx, client, "/activity/workout/"+url.PathEscape(event.ID))
 		if err != nil {
 			return fmt.Errorf("fetching workout: %w", err)
 		}
@@ -157,7 +159,7 @@ func (w *Worker) processEvent(ctx context.Context, record db.WebhookEvent) error
 
 	case "sleep.updated":
 		traceLogger.Info("Fetching updated sleep", "sleep_id", event.ID)
-		obj, err := client.Sleep.GetByID(ctx, event.ID)
+		obj, err := whoopdata.Get[whoopdata.Sleep](ctx, client, "/activity/sleep/"+url.PathEscape(event.ID))
 		if err != nil {
 			return fmt.Errorf("fetching sleep: %w", err)
 		}

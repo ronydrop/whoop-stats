@@ -1,83 +1,65 @@
-import { client } from "@/lib/api/client";
+import { sumAvailable } from "@/lib/metrics";
+import { RecordContext } from "@/components/record-context";
+import { periodRecords } from "@/lib/api/period-records";
+import { resolvePeriod, type SearchParams } from "@/lib/period";
+import { PeriodFilter } from "@/components/period-filter";
+import { DayComparison } from "@/components/day-comparison";
 import { StrainPanels } from "@/components/strain-panels";
-import { TrendChartWithToggle } from "@/components/trend-chart";
+import { TrendChart } from "@/components/trend-chart";
 import { Flame } from "lucide-react";
-import { formatNumber, formatCalories, formatFullDate, kjToCal } from "@/lib/format";
+import { formatNumber, formatCalories, formatRecordInterval, kjToCal } from "@/lib/format";
 import { computeAvg } from "@/lib/stats";
-import type { ApiRecord } from "@/lib/types";
+import type { Cycle, Workout } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function StrainPage() {
+export default async function StrainPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const period = resolvePeriod(await searchParams);
   const [cyclesRes, workoutsRes] = await Promise.all([
-    client.GET("/api/v1/cycles", {
-      params: { query: { cursor: new Date().toISOString() } },
-    }),
-    client.GET("/api/v1/workouts", {
-      params: { query: { cursor: new Date().toISOString() } },
-    }),
+    periodRecords("cycles", period),
+    periodRecords("workouts", period),
   ]);
 
-  const cycles = (cyclesRes.data as ApiRecord[]) || [];
-  const workouts = (workoutsRes.data as ApiRecord[]) || [];
+  const cycles = (cyclesRes as Cycle[]) || [];
+  const workouts = (workoutsRes as Workout[]) || [];
   const latest = cycles[0];
 
-  const strain = latest?.strain ? Number(latest.strain) : null;
-  const kj = latest?.kilojoule ? Number(latest.kilojoule) : null;
-  const avgHR = latest?.average_heart_rate ? Number(latest.average_heart_rate) : null;
-  const maxHR = latest?.max_heart_rate ? Number(latest.max_heart_rate) : null;
+  const strain = latest?.strain != null ? Number(latest.strain) : null;
+  const kj = latest?.kilojoule != null ? Number(latest.kilojoule) : null;
+  const avgHR = latest?.average_heart_rate != null ? Number(latest.average_heart_rate) : null;
+  const maxHR = latest?.max_heart_rate != null ? Number(latest.max_heart_rate) : null;
 
-  // 7-day
-  const weekCycles = cycles.slice(0, 7);
-  const weekStrain = weekCycles.reduce((acc: number, c: ApiRecord) => acc + (Number(c.strain) || 0), 0);
-  const weekKJ = weekCycles.reduce((acc: number, c: ApiRecord) => acc + (Number(c.kilojoule) || 0), 0);
-  const weekAvgDailyStrain = computeAvg(weekCycles.map((c: ApiRecord) => Number(c.strain || 0)));
+  const cycleEnergy = sumAvailable(cycles.map(c => c.kilojoule));
 
   // All-time derived
-  const allStrains = cycles.filter((c: ApiRecord) => c.strain).map((c: ApiRecord) => Number(c.strain));
+  const allStrains = cycles.filter((c: Cycle) => c.strain != null).map((c: Cycle) => Number(c.strain));
   const avgDailyStrain = computeAvg(allStrains);
   const peakStrain = allStrains.length ? Math.max(...allStrains) : null;
-  const totalCal = cycles.reduce((acc: number, c: ApiRecord) => acc + kjToCal(Number(c.kilojoule || 0)), 0);
-  const avgDailyCal = computeAvg(cycles.map((c: ApiRecord) => kjToCal(Number(c.kilojoule || 0))));
+  const totalCal = cycleEnergy == null ? null : kjToCal(cycleEnergy);
+  const avgDailyCal = computeAvg(cycles.flatMap(c => c.kilojoule == null ? [] : [kjToCal(c.kilojoule)]));
   const highStrainDays = allStrains.filter(s => s >= 14).length;
 
   // Day-over-day
-  const prevStrain = cycles[1]?.strain ? Number(cycles[1].strain) : null;
-  const strainDelta = strain && prevStrain ? strain - prevStrain : null;
+  const prevStrain = cycles[1]?.strain != null ? Number(cycles[1].strain) : null;
+  const strainDelta = strain != null && prevStrain != null ? strain - prevStrain : null;
 
   // Workout stats
-  const workoutStrains = workouts.filter((w: ApiRecord) => w.strain).map((w: ApiRecord) => Number(w.strain));
+  const workoutStrains = workouts.filter((w: Workout) => w.strain != null).map((w: Workout) => Number(w.strain));
   const avgWorkoutStrain = computeAvg(workoutStrains);
-  const workoutDurations = workouts.map((w: ApiRecord) => {
-    if (!w.end_time) return 0;
-    return new Date(w.end_time).getTime() - new Date(w.start_time).getTime();
-  }).filter(d => d > 0);
+  const workoutDurations = workouts.flatMap((w: Workout) => w.end_time ? [Date.parse(w.end_time) - Date.parse(w.start_time)] : []).filter(d => d >= 0);
   const avgWorkoutDurationMs = computeAvg(workoutDurations);
-  const totalWorkoutDurationMs = workoutDurations.reduce((a, b) => a + b, 0);
+  const totalWorkoutDurationMs = sumAvailable(workoutDurations);
 
-  // Sport breakdown
-  const sportMap: Record<string, { count: number; totalStrain: number; totalKJ: number }> = {};
-  workouts.forEach((w: ApiRecord) => {
-    const sport = (w.sport_name || "activity").toLowerCase();
-    if (!sportMap[sport]) sportMap[sport] = { count: 0, totalStrain: 0, totalKJ: 0 };
-    sportMap[sport].count++;
-    sportMap[sport].totalStrain += Number(w.strain || 0);
-    sportMap[sport].totalKJ += Number(w.kilojoule || 0);
-  });
-  const sportBreakdown = Object.entries(sportMap)
-    .map(([sport, data]) => ({
-      sport,
-      count: data.count,
-      avgStrain: data.totalStrain / data.count,
-      totalCal: Math.round(kjToCal(data.totalKJ)),
-    }))
-    .sort((a, b) => b.count - a.count);
+  const sportBreakdown = [...new Set(workouts.map(w => w.sport_name || "activity"))].map(sport => {
+    const sessions = workouts.filter(w => (w.sport_name || "activity") === sport);
+    const energy = sumAvailable(sessions.map(w => w.kilojoule));
+    return { sport, count: sessions.length, avgStrain: computeAvg(sessions.flatMap(w => w.strain == null ? [] : [w.strain])), totalCal: energy == null ? null : kjToCal(energy) };
+  }).sort((a,b) => b.count-a.count);
 
   const panelData = {
     strain, kj, avgHR, maxHR,
-    weekStrain, weekKJ, weekAvgDailyStrain,
     avgDailyStrain, peakStrain, totalCal,
-    totalDays: cycles.length, workoutCount: workouts.length,
+    totalDays: cycles.length, strainCount: allStrains.length, energyCount: cycles.filter(c => c.kilojoule != null).length, workoutCount: workouts.length,
     highStrainDays, avgDailyCal,
     avgWorkoutStrain, avgWorkoutDurationMs, totalWorkoutDurationMs,
     sportBreakdown, strainDelta,
@@ -85,35 +67,39 @@ export default async function StrainPage() {
 
   // Trends
   const dailyStrainTrend = cycles
-    .filter((c: ApiRecord) => c.strain)
-    .map((c: ApiRecord) => ({ date: c.start_time as string, value: Number(c.strain) }))
+    .filter((c: Cycle) => c.strain != null)
+    .map((c: Cycle) => ({ date: c.start_time as string, end: c.end_time as string | null, updatedAt: c.updated_at, value: Number(c.strain) }))
     .reverse();
   const calorieTrend = cycles
-    .filter((c: ApiRecord) => c.kilojoule)
-    .map((c: ApiRecord) => ({ date: c.start_time as string, value: kjToCal(Number(c.kilojoule)) }))
+    .filter((c: Cycle) => c.kilojoule != null)
+    .map((c: Cycle) => ({ date: c.start_time as string, end: c.end_time as string | null, updatedAt: c.updated_at, value: kjToCal(Number(c.kilojoule)) }))
     .reverse();
 
+
   return (
-    <div className="px-4 md:px-8 lg:px-10 py-6 md:py-8 max-w-7xl mx-auto space-y-6">
-      <header>
+    <div className="dashboard-page">
+      <header><span className="page-kicker">SEU PAINEL WHOOP</span>
         <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Esforço</h1>
-        <p className="text-sm text-text-tertiary mt-0.5">Acompanhe sua carga cardiovascular diária</p>
+        <p className="text-sm text-text-tertiary mt-0.5">Acompanhe a carga cardiovascular por ciclo</p>
       </header>
+      <PeriodFilter pathname="/strain" key={`${period.start}-${period.end}-${period.first}-${period.compare}`} period={period} />
+      {period.compare && <DayComparison period={period} pathname="/strain" />}
+      <RecordContext label="Ciclo completo" start={latest?.start_time} end={latest?.end_time} state={latest?.score_state} />
 
       {/* Clickable panels */}
-      <StrainPanels data={panelData} />
+      <StrainPanels data={panelData} records={cycles} />
 
       {/* Trend charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">Esforço diário</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-1">Esforço por ciclo</h3>
           <p className="text-xs text-text-tertiary mb-3">Pontuação de esforço por ciclo</p>
-          <TrendChartWithToggle data={dailyStrainTrend} color="var(--color-strain)" gradientId="strainDailyGrad" domain={[0, 21]} height={220} />
+          <TrendChart intervals selection={period} data={dailyStrainTrend} color="var(--color-strain)" label="Esforço" domain={[0, 21]} height={220} />
         </div>
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">Calorias diárias</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-1">Calorias por ciclo</h3>
           <p className="text-xs text-text-tertiary mb-3">Convertidas de quilojoules</p>
-          <TrendChartWithToggle data={calorieTrend} color="#f97316" gradientId="calTrendGrad" unit=" Cal" height={220} />
+          <TrendChart intervals selection={period} data={calorieTrend} color="#f97316" label="Calorias" unit=" kcal" height={220} />
         </div>
       </div>
 
@@ -122,15 +108,15 @@ export default async function StrainPage() {
         <div className="glass-card p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-4">Histórico de ciclos</h3>
           <div className="space-y-1">
-            {cycles.slice(0, 14).map((c: ApiRecord, i: number) => {
-              const s = c.strain ? Number(c.strain) : null;
+            {cycles.map((c: Cycle, i: number) => {
+              const s = c.strain != null ? Number(c.strain) : null;
               return (
                 <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-1/50 transition-colors">
                   <Flame className="w-3.5 h-3.5 text-strain" />
-                  <span className="text-sm text-text-secondary flex-1">{formatFullDate(c.start_time)}</span>
-                  <span className="text-sm font-medium text-text-primary">{s ? formatNumber(s, 1) : "--"}</span>
-                  <span className="text-xs text-text-muted w-20 text-right">{c.kilojoule ? formatCalories(Number(c.kilojoule)) : "--"}</span>
-                  <span className="text-xs text-text-muted w-16 text-right">{c.average_heart_rate ? `${c.average_heart_rate} bpm` : "--"}</span>
+                  <span className="text-sm text-text-secondary flex-1">{formatRecordInterval(c.start_time, c.end_time)}</span>
+                  <span className="text-sm font-medium text-text-primary">{s != null ? formatNumber(s, 1) : "Não disponível"}</span>
+                  <span className="text-xs text-text-muted w-20 text-right">{c.kilojoule != null ? formatCalories(Number(c.kilojoule)) : "--"}</span>
+                  <span className="text-xs text-text-muted w-16 text-right">{c.average_heart_rate != null ? `${c.average_heart_rate} bpm` : "--"}</span>
                 </div>
               );
             })}

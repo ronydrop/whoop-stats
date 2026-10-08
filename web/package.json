@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test \"src/**/*.test.ts\""
+    "test": "node --experimental-strip-types --test --test-concurrency=1 \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",

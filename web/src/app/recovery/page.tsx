@@ -1,47 +1,46 @@
-import { client } from "@/lib/api/client";
+import { RecordContext } from "@/components/record-context";
+import { periodRecords } from "@/lib/api/period-records";
+import { resolvePeriod, type SearchParams } from "@/lib/period";
+import { PeriodFilter } from "@/components/period-filter";
+import { DayComparison } from "@/components/day-comparison";
 import { RecoveryGauge } from "@/components/recovery-gauge";
-import { TrendChartWithToggle } from "@/components/trend-chart";
-import { formatNumber, getRecoveryLabel, formatFullDate } from "@/lib/format";
+import { TrendChart } from "@/components/trend-chart";
+import { formatNumber, getRecoveryColor, getRecoveryLabel, formatFullDate } from "@/lib/format";
 import { RecoveryPanels } from "@/components/recovery-panels";
 import { computeAvg, computeStdDev } from "@/lib/stats";
-import type { ApiRecord } from "@/lib/types";
+import type { Recovery } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function RecoveryPage() {
-  const recoveriesRes = await client.GET("/api/v1/recoveries", {
-    params: { query: { cursor: new Date().toISOString() } },
-  });
+export default async function RecoveryPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const period = resolvePeriod(await searchParams);
+  const recoveriesRes = await periodRecords("recoveries", period);
 
-  const recoveries = ((recoveriesRes.data as ApiRecord[]) || []);
+  const recoveries = ((recoveriesRes as Recovery[]) || []);
   const latest = recoveries[0];
 
-  const recoveryScore = latest?.recovery_score
-    ? Math.round(Number(latest.recovery_score))
+  const recoveryScore = latest?.recovery_score != null ? Math.round(Number(latest.recovery_score))
     : null;
-  const hrv = latest?.hrv_rmssd_milli ? Number(latest.hrv_rmssd_milli) : null;
-  const rhr = latest?.resting_heart_rate ? Number(latest.resting_heart_rate) : null;
-  const spo2 = latest?.spo2_percentage ? Number(latest.spo2_percentage) : null;
-  const skinTemp = latest?.skin_temp_celsius ? Number(latest.skin_temp_celsius) : null;
+  const hrv = latest?.hrv_rmssd_milli != null ? Number(latest.hrv_rmssd_milli) : null;
+  const rhr = latest?.resting_heart_rate != null ? Number(latest.resting_heart_rate) : null;
+  const spo2 = latest?.spo2_percentage != null ? Number(latest.spo2_percentage) : null;
+  const skinTemp = latest?.skin_temp_celsius != null ? Number(latest.skin_temp_celsius) : null;
 
   // Compute arrays for derived stats
-  const hrvValues = recoveries.filter((r: ApiRecord) => r.hrv_rmssd_milli).map((r: ApiRecord) => Number(r.hrv_rmssd_milli));
-  const rhrValues = recoveries.filter((r: ApiRecord) => r.resting_heart_rate).map((r: ApiRecord) => Number(r.resting_heart_rate));
-  const recoveryScores = recoveries.filter((r: ApiRecord) => r.recovery_score).map((r: ApiRecord) => Number(r.recovery_score));
-  const spo2Values = recoveries.filter((r: ApiRecord) => r.spo2_percentage).map((r: ApiRecord) => Number(r.spo2_percentage));
-  const skinTempValues = recoveries.filter((r: ApiRecord) => r.skin_temp_celsius).map((r: ApiRecord) => Number(r.skin_temp_celsius));
+  const hrvValues = recoveries.filter((r: Recovery) => r.hrv_rmssd_milli != null).map((r: Recovery) => Number(r.hrv_rmssd_milli));
+  const rhrValues = recoveries.filter((r: Recovery) => r.resting_heart_rate != null).map((r: Recovery) => Number(r.resting_heart_rate));
+  const recoveryScores = recoveries.filter((r: Recovery) => r.recovery_score != null).map((r: Recovery) => Number(r.recovery_score));
+  const spo2Values = recoveries.filter((r: Recovery) => r.spo2_percentage != null).map((r: Recovery) => Number(r.spo2_percentage));
+  const skinTempValues = recoveries.filter((r: Recovery) => r.skin_temp_celsius != null).map((r: Recovery) => Number(r.skin_temp_celsius));
 
   // Averages
-  const avg7dRecovery = computeAvg(recoveryScores.slice(0, 7));
-  const avg30dRecovery = computeAvg(recoveryScores);
-  const avg7dHRV = computeAvg(hrvValues.slice(0, 7));
-  const avg30dHRV = computeAvg(hrvValues);
-  const avg7dRHR = computeAvg(rhrValues.slice(0, 7));
-  const avg30dRHR = computeAvg(rhrValues);
+  const avgPeriodRecovery = computeAvg(recoveryScores);
+  const avgPeriodHRV = computeAvg(hrvValues);
+  const avgPeriodRHR = computeAvg(rhrValues);
 
   // Standard deviations (variability)
-  const hrvStdDev = computeStdDev(hrvValues.slice(0, 30));
-  const rhrStdDev = computeStdDev(rhrValues.slice(0, 30));
+  const hrvStdDev = computeStdDev(hrvValues);
+  const rhrStdDev = computeStdDev(rhrValues);
 
   // Min/Max ranges
   const hrvMin = hrvValues.length ? Math.min(...hrvValues) : null;
@@ -56,80 +55,86 @@ export default async function RecoveryPage() {
   // Skin temp stats
   const avgSkinTemp = computeAvg(skinTempValues);
   const skinTempStdDev = computeStdDev(skinTempValues);
-  const skinTempDeviation = skinTemp && avgSkinTemp ? skinTemp - avgSkinTemp : null;
+  const skinTempDeviation = skinTemp != null && avgSkinTemp != null ? skinTemp - avgSkinTemp : null;
 
   // Day-over-day deltas
-  const prevRecovery = recoveries[1]?.recovery_score ? Number(recoveries[1].recovery_score) : null;
-  const recoveryDelta = recoveryScore && prevRecovery ? recoveryScore - Math.round(prevRecovery) : null;
-  const prevHRV = hrvValues.length > 1 ? hrvValues[1] : null;
-  const hrvDelta = hrv && prevHRV ? hrv - prevHRV : null;
-  const prevRHR = rhrValues.length > 1 ? rhrValues[1] : null;
-  const rhrDelta = rhr && prevRHR ? rhr - prevRHR : null;
+  const prevRecovery = recoveries[1]?.recovery_score != null ? Number(recoveries[1].recovery_score) : null;
+  const recoveryDelta = recoveryScore != null && prevRecovery != null ? recoveryScore - Math.round(prevRecovery) : null;
+  const prevHRV = recoveries[1]?.hrv_rmssd_milli ?? null;
+  const hrvDelta = hrv != null && prevHRV != null ? hrv - prevHRV : null;
+  const prevRHR = recoveries[1]?.resting_heart_rate ?? null;
+  const rhrDelta = rhr != null && prevRHR != null ? rhr - prevRHR : null;
 
   // Distribution: how many days in green/yellow/red
-  const greenDays = recoveryScores.filter(s => s >= 66).length;
-  const yellowDays = recoveryScores.filter(s => s >= 34 && s < 66).length;
-  const redDays = recoveryScores.filter(s => s < 34).length;
+  const greenDays = recoveryScores.filter(s => getRecoveryColor(s) === "green").length;
+  const yellowDays = recoveryScores.filter(s => getRecoveryColor(s) === "yellow").length;
+  const redDays = recoveryScores.filter(s => getRecoveryColor(s) === "red").length;
 
   // Build trend data
   const hrvTrend = recoveries
-    .filter((r: ApiRecord) => r.hrv_rmssd_milli)
-    .map((r: ApiRecord) => ({ date: r.start_time as string, value: Number(r.hrv_rmssd_milli) }))
+    .filter((r: Recovery) => r.hrv_rmssd_milli != null)
+    .map((r: Recovery) => ({ date: r.reference_time ?? r.recorded_at, value: Number(r.hrv_rmssd_milli) }))
     .reverse();
   const rhrTrend = recoveries
-    .filter((r: ApiRecord) => r.resting_heart_rate)
-    .map((r: ApiRecord) => ({ date: r.start_time as string, value: Number(r.resting_heart_rate) }))
+    .filter((r: Recovery) => r.resting_heart_rate != null)
+    .map((r: Recovery) => ({ date: r.reference_time ?? r.recorded_at, value: Number(r.resting_heart_rate) }))
     .reverse();
   const recoveryTrend = recoveries
-    .filter((r: ApiRecord) => r.recovery_score)
-    .map((r: ApiRecord) => ({ date: r.start_time as string, value: Number(r.recovery_score) }))
+    .filter((r: Recovery) => r.recovery_score != null)
+    .map((r: Recovery) => ({ date: r.reference_time ?? r.recorded_at, value: Number(r.recovery_score) }))
     .reverse();
 
   // Package all data for the client panels
   const panelData = {
     hrv, rhr, spo2, skinTemp, recoveryScore,
-    avg7dHRV, avg30dHRV, avg7dRHR, avg30dRHR,
+    avgPeriodHRV, avgPeriodRHR,
     hrvStdDev, rhrStdDev,
     hrvMin, hrvMax, rhrMin, rhrMax,
     avgSpo2, minSpo2,
     avgSkinTemp, skinTempStdDev, skinTempDeviation,
     recoveryDelta, hrvDelta, rhrDelta,
-    avg7dRecovery, avg30dRecovery,
+    avgPeriodRecovery,
     greenDays, yellowDays, redDays,
     totalDays: recoveryScores.length,
   };
 
+
   return (
-    <div className="px-4 md:px-8 lg:px-10 py-6 md:py-8 max-w-7xl mx-auto space-y-6">
-      <header>
+    <div className="dashboard-page">
+      <header><span className="page-kicker">SEU PAINEL WHOOP</span>
         <h1 className="text-2xl font-semibold tracking-tight text-text-primary">Recuperação</h1>
-        <p className="text-sm text-text-tertiary mt-0.5">Acompanhe a disposição do seu corpo para atividades</p>
+        <p className="text-sm text-text-tertiary mt-0.5">Medições do período, pela data de término do sono associado</p>
       </header>
+      <PeriodFilter pathname="/recovery" key={`${period.start}-${period.end}-${period.first}-${period.compare}`} period={period} />
+      {period.compare && <DayComparison period={period} pathname="/recovery" />}
+      <RecordContext day={(period.singleDay ? period.start : undefined)} start={latest?.reference_time ?? latest?.recorded_at} end={latest?.reference_time ?? latest?.recorded_at} label={latest?.reference_time ? "Recuperação: término do sono associado" : "Recuperação: registro na WHOOP"} state={latest?.score_state} />
 
       {/* Top section: Gauge + Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="glass-card p-6 flex flex-col items-center justify-center lg:col-span-1">
           <RecoveryGauge score={recoveryScore} size={200} />
-          {recoveryScore && (
+          {recoveryScore != null && (
             <p className="text-sm text-text-secondary mt-2">{getRecoveryLabel(recoveryScore)}</p>
           )}
           {recoveryDelta != null && (
             <p className="text-xs text-text-muted mt-1">
-              {recoveryDelta > 0 ? "+" : ""}{recoveryDelta}% desde ontem
+              {recoveryDelta > 0 ? "+" : ""}{formatNumber(recoveryDelta, 1)} p.p. em relação ao registro anterior
             </p>
           )}
         </div>
 
         {/* Clickable vitals */}
         <div className="lg:col-span-2">
-          <RecoveryPanels data={panelData} />
+          <RecoveryPanels data={panelData} records={recoveries} />
         </div>
       </div>
 
+      <h2 className="text-sm font-semibold">Resumo do período selecionado</h2>
+      <p className="text-sm text-text-secondary">Média calculada: {avgPeriodRecovery == null ? "Não disponível" : `${formatNumber(avgPeriodRecovery, 1)}%`} · {recoveryScores.length} observações dos registros incluídos, com as referências temporais indicadas.</p>
       {/* Recovery Distribution — own row */}
       <div className="glass-card p-5">
         <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
-          Distribuição da recuperação ({panelData.totalDays} dias)
+          Distribuição da recuperação ({panelData.totalDays} {panelData.totalDays === 1 ? "registro" : "registros"})
         </h3>
         <div className="flex items-center gap-1.5 h-4 rounded-full overflow-hidden">
           {greenDays > 0 && (
@@ -154,20 +159,20 @@ export default async function RecoveryPage() {
         <div className="glass-card p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-1">Tendência da VFC</h3>
           <p className="text-xs text-text-tertiary mb-3">RMSSD em milissegundos</p>
-          <TrendChartWithToggle data={hrvTrend} color="var(--color-recovery-green)" gradientId="hrvGrad" unit=" ms" height={200} />
+          <TrendChart selection={period} data={hrvTrend} color="var(--color-recovery-green)" label="VFC" unit=" ms" height={200} />
         </div>
         <div className="glass-card p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-1">Frequência cardíaca em repouso</h3>
-          <p className="text-xs text-text-tertiary mb-3">Batimentos por minuto (valores menores são melhores)</p>
-          <TrendChartWithToggle data={rhrTrend} color="var(--color-strain)" gradientId="rhrGrad" unit=" bpm" height={200} />
+          <p className="text-xs text-text-tertiary mb-3">Batimentos por minuto, fornecidos pela WHOOP</p>
+          <TrendChart selection={period} data={rhrTrend} color="var(--color-strain)" label="FC em repouso" unit=" bpm" height={200} />
         </div>
       </div>
 
       {/* Recovery score trend */}
       <div className="glass-card p-5">
         <h3 className="text-sm font-semibold text-text-primary mb-1">Pontuação de recuperação</h3>
-        <p className="text-xs text-text-tertiary mb-3">Porcentagem diária de recuperação</p>
-        <TrendChartWithToggle data={recoveryTrend} color="var(--color-recovery-green)" gradientId="recGrad" unit="%" domain={[0, 100]} height={220} />
+        <p className="text-xs text-text-tertiary mb-3">Pontuação dos registros associados ao sono</p>
+        <TrendChart selection={period} data={recoveryTrend} color="var(--color-recovery-green)" label="Recuperação" unit="%" domain={[0, 100]} height={220} />
       </div>
 
       {/* Recovery history list */}
@@ -175,18 +180,18 @@ export default async function RecoveryPage() {
         <div className="glass-card p-5">
           <h3 className="text-sm font-semibold text-text-primary mb-4">Histórico de recuperação</h3>
           <div className="space-y-1">
-            {recoveries.slice(0, 14).map((rec: ApiRecord, i: number) => {
-              const score = rec.recovery_score ? Math.round(Number(rec.recovery_score)) : null;
-              const dotColor = score
-                ? score >= 66 ? "bg-emerald-500" : score >= 34 ? "bg-amber-500" : "bg-rose-500"
+            {recoveries.map((rec: Recovery, i: number) => {
+              const score = rec.recovery_score != null ? Math.round(Number(rec.recovery_score)) : null;
+              const dotColor = score != null
+                ? getRecoveryColor(score) === "green" ? "bg-emerald-500" : getRecoveryColor(score) === "yellow" ? "bg-amber-500" : "bg-rose-500"
                 : "bg-surface-3";
               return (
                 <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-1/50 transition-colors">
                   <div className={`w-2.5 h-2.5 rounded-full ${dotColor}`} />
-                  <span className="text-sm text-text-secondary flex-1">{formatFullDate(rec.start_time)}</span>
-                  <span className="text-sm font-medium text-text-primary">{score ? `${score}%` : "--"}</span>
-                  <span className="text-xs text-text-muted w-16 text-right">{rec.hrv_rmssd_milli ? `${formatNumber(Number(rec.hrv_rmssd_milli), 0)} ms` : "--"}</span>
-                  <span className="text-xs text-text-muted w-16 text-right">{rec.resting_heart_rate ? `${formatNumber(Number(rec.resting_heart_rate), 0)} bpm` : "--"}</span>
+                  <span className="text-sm text-text-secondary flex-1">{rec.reference_time ? formatFullDate(rec.reference_time) : "Referência não disponível"}</span>
+                  <span className="text-sm font-medium text-text-primary">{score != null ? `${score}%` : "--"}</span>
+                  <span className="text-xs text-text-muted w-16 text-right">{rec.hrv_rmssd_milli != null ? `${formatNumber(Number(rec.hrv_rmssd_milli), 0)} ms` : "--"}</span>
+                  <span className="text-xs text-text-muted w-16 text-right">{rec.resting_heart_rate != null ? `${formatNumber(Number(rec.resting_heart_rate), 0)} bpm` : "--"}</span>
                 </div>
               );
             })}

@@ -1,86 +1,22 @@
 "use client";
-
-import { ReactNode } from "react";
+import { type ReactNode, type CSSProperties } from "react";
+import { ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoTooltip } from "@/components/info-tooltip";
 
 interface MetricCardProps {
-  title: string;
-  value: string | number;
-  subtitle?: ReactNode;
-  icon?: ReactNode;
+  title: string; value: string | number; subtitle?: ReactNode; icon?: ReactNode; description?: string;
   accentColor?: "green" | "yellow" | "red" | "blue" | "violet" | "none";
-  className?: string;
-  children?: ReactNode;
-  onClick?: () => void;
+  className?: string; children?: ReactNode; visual?: ReactNode; onClick?: () => void;
 }
-
-const accentMap: Record<string, { glow: string; border: string }> = {
-  green: { glow: "bg-emerald-500", border: "hover:border-emerald-500/20" },
-  yellow: { glow: "bg-amber-500", border: "hover:border-amber-500/20" },
-  red: { glow: "bg-rose-500", border: "hover:border-rose-500/20" },
-  blue: { glow: "bg-blue-500", border: "hover:border-blue-500/20" },
-  violet: { glow: "bg-violet-500", border: "hover:border-violet-500/20" },
-  none: { glow: "", border: "" },
-};
-
-export function MetricCard({
-  title,
-  value,
-  subtitle,
-  icon,
-  accentColor = "none",
-  className,
-  children,
-  onClick,
-}: MetricCardProps) {
-  const accent = accentMap[accentColor];
-
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "group relative overflow-hidden rounded-2xl border border-border-subtle bg-surface-0/60 p-5 backdrop-blur-xl transition-all duration-300",
-        accent.border,
-        onClick && "cursor-pointer",
-        className
-      )}
-    >
-      {/* Corner glow */}
-      {accentColor !== "none" && (
-        <div
-          className={cn(
-            "absolute -top-12 -right-12 w-24 h-24 rounded-full blur-[40px] opacity-30 transition-opacity duration-500 group-hover:opacity-50",
-            accent.glow
-          )}
-        />
-      )}
-
-      <div className="relative z-10 flex flex-col h-full">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
-            {title}
-          </h3>
-          {icon && (
-            <div className="text-text-muted group-hover:text-text-tertiary transition-colors">
-              {icon}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-3xl font-semibold tracking-tight text-text-primary">
-            {value}
-          </span>
-        </div>
-
-        {subtitle && (
-          <div className="mt-1.5 text-sm text-text-tertiary">{subtitle}</div>
-        )}
-
-        {children && (
-          <div className="mt-4 flex-1 flex flex-col justify-end">{children}</div>
-        )}
-      </div>
-    </div>
-  );
+const colors = { green: "var(--color-recovery-green)", yellow: "var(--color-recovery-yellow)", red: "var(--color-recovery-red)", blue: "var(--color-strain)", violet: "var(--color-sleep)", none: "var(--color-accent-hover)" };
+export function MetricCard({ title, value, subtitle, icon, description, accentColor = "none", className, children, visual, onClick }: MetricCardProps) {
+  return <div className={cn("metric-card", className)} style={{ "--metric-color": colors[accentColor] } as CSSProperties} data-interactive={!!onClick} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onKeyDown={onClick ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } } : undefined}>
+    <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-1"><h3 className="metric-title">{title}</h3>{description && <InfoTooltip title={title} description={description} />}</div>{icon && <span className="metric-icon">{icon}</span>}</div>
+    <div className={cn("metric-value break-words", String(value).length > 12 && "!text-xl")}>{value}</div>
+    {subtitle && <div className="mt-2 text-xs leading-relaxed text-text-secondary">{subtitle}</div>}
+    {visual && <div className="metric-visual">{visual}</div>}
+    {children && <div className="mt-3 flex flex-1 flex-col justify-end">{children}</div>}
+    {onClick && <span className="mt-4 flex items-center gap-1 text-[11px] text-text-muted">Ver detalhes<ArrowUpRight className="size-3" aria-hidden="true" /></span>}
+  </div>;
 }

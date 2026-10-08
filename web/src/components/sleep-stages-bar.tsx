@@ -2,13 +2,13 @@
 
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/format";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 interface SleepStagesBarProps {
-  light: number;
-  rem: number;
-  deep: number;
-  awake: number;
+  light: number | null;
+  rem: number | null;
+  deep: number | null;
+  awake: number | null;
 }
 
 const stages = [
@@ -19,9 +19,11 @@ const stages = [
 ] as const;
 
 export function SleepStagesBar({ light, rem, deep, awake }: SleepStagesBarProps) {
-  const values = { awake, rem, light, deep };
+  const reducedMotion = useReducedMotion();
+  if (awake == null || rem == null || light == null || deep == null) return <p className="text-xs text-text-muted">Composição não disponível: fases incompletas.</p>;
   const total = awake + rem + light + deep;
 
+  const values = { awake, rem, light, deep };
   if (total === 0) return <div className="text-xs text-text-muted">Sem dados das fases</div>;
 
   return (
@@ -33,9 +35,9 @@ export function SleepStagesBar({ light, rem, deep, awake }: SleepStagesBarProps)
           return (
             <motion.div
               key={stage.key}
-              initial={{ width: 0 }}
+              initial={reducedMotion ? false : { width: 0 }}
               animate={{ width: `${pct}%` }}
-              transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+              transition={{ duration: reducedMotion ? 0 : 0.8, ease: "easeOut", delay: 0.1 }}
               className={cn("h-full", stage.color)}
             />
           );

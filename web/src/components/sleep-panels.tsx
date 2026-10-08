@@ -1,188 +1,83 @@
 "use client";
-
 import { MetricCard } from "@/components/metric-card";
+import { MetricScale, MetricHistory, MetricComposition } from "@/components/metric-visual";
+import { metric } from "@/lib/metrics";
+import { formatRecordInterval } from "@/lib/format";
+import type { Sleep } from "@/lib/types";
 import { DetailPopup, DetailRow, useDetailPopup } from "@/components/detail-popup";
 import { BedDouble, Clock, Brain, Moon } from "lucide-react";
 import { formatNumber, formatDuration } from "@/lib/format";
+import { sleepNeedAssessment, type sleepSummary } from "@/lib/metrics";
 
 interface SleepPanelData {
-  sleepPerf: number | null;
-  efficiency: number | null;
-  consistency: number | null;
-  respRate: number | null;
-  totalSleepMs: number;
-  totalInBedMs: number;
-  sleepDebtMs: number | null;
-  disturbances: number | null;
-  sleepCycles: number | null;
-  baselineMs: number | null;
-  needFromStrainMs: number | null;
-  needFromNapMs: number | null;
-  napCount: number;
-  lightMs: number;
-  remMs: number;
-  deepMs: number;
-  awakeMs: number;
-  noDataMs: number;
-  // Derived averages
-  avg7dPerf: number | null;
-  avg30dPerf: number | null;
-  avg7dEfficiency: number | null;
-  avg30dEfficiency: number | null;
-  avgDurationMs: number | null;
-  avgDeepPct: number | null;
-  avgRemPct: number | null;
-  perfDelta: number | null;
+  summary: ReturnType<typeof sleepSummary>;
+  sleepPerf: number | null; efficiency: number | null; consistency: number | null; respRate: number | null;
+  totalSleepMs: number | null; totalInBedMs: number | null; sleepDebtMs: number | null;
+  disturbances: number | null; sleepCycles: number | null; baselineMs: number | null;
+  needFromStrainMs: number | null; needFromNapMs: number | null; napCount: number;
+  lightMs: number | null; remMs: number | null; deepMs: number | null; awakeMs: number | null; noDataMs: number | null;
+  avgPeriodPerf: number | null; avgPeriodEfficiency: number | null; avgDurationMs: number | null;
+  avgDeepPct: number | null; avgRemPct: number | null; perfDelta: number | null;
 }
-
-function fmtDur(ms: number): string {
-  return ms > 0 ? formatDuration(ms) : "--";
-}
-
-export function SleepPanels({ data: d }: { data: SleepPanelData }) {
+const duration = (n: number | null) => n == null ? "Não disponível" : formatDuration(n);
+const numeric = (n: number | null, unit = "") => n == null ? "Não disponível" : formatNumber(n, 1) + unit;
+export function SleepPanels({ data: d, records }: { data: SleepPanelData; records: Sleep[] }) {
   const { popup, open, close } = useDetailPopup();
-
-  const deepPct = d.totalSleepMs > 0 ? (d.deepMs / d.totalSleepMs * 100) : 0;
-  const remPct = d.totalSleepMs > 0 ? (d.remMs / d.totalSleepMs * 100) : 0;
-  const lightPct = d.totalSleepMs > 0 ? (d.lightMs / d.totalSleepMs * 100) : 0;
-
-  // Sleep need: baseline + strain need - nap credit
-  const sleepNeedMs = (d.baselineMs || 0) + (d.needFromStrainMs || 0) - (d.needFromNapMs || 0);
-  const sleepDebt = d.sleepDebtMs ? d.sleepDebtMs : null;
-  const overUnder = sleepNeedMs > 0 && d.totalSleepMs > 0
-    ? d.totalSleepMs - sleepNeedMs
-    : null;
-
-  return (
-    <>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <MetricCard
-          title="Desempenho"
-          value={d.sleepPerf ? `${d.sleepPerf}%` : "--%"}
-          subtitle={d.perfDelta != null ? (
-            <span className={`text-[10px] ${d.perfDelta > 0 ? "text-emerald-400" : d.perfDelta < 0 ? "text-rose-400" : "text-text-muted"}`}>
-              {d.perfDelta > 0 ? "+" : ""}{d.perfDelta}% desde ontem
-            </span>
-          ) : d.totalSleepMs > 0 ? fmtDur(d.totalSleepMs) + " no total" : undefined}
-          icon={<Moon className="w-4 h-4" />}
-          accentColor="violet"
-          onClick={() => open("performance")}
-        />
-        <MetricCard
-          title="Eficiência"
-          value={d.efficiency ? `${formatNumber(d.efficiency, 0)}%` : "--"}
-          subtitle="Tempo dormindo em relação ao tempo na cama"
-          icon={<BedDouble className="w-4 h-4" />}
-          accentColor="blue"
-          onClick={() => open("efficiency")}
-        />
-        <MetricCard
-          title="Regularidade"
-          value={d.consistency ? `${formatNumber(d.consistency, 0)}%` : "--"}
-          subtitle="Regularidade dos horários"
-          icon={<Clock className="w-4 h-4" />}
-          accentColor="green"
-          onClick={() => open("stages")}
-        />
-        <MetricCard
-          title="Frequência respiratória"
-          value={d.respRate ? `${formatNumber(d.respRate, 1)}` : "--"}
-          subtitle="Respirações por minuto"
-          icon={<Brain className="w-4 h-4" />}
-          accentColor="yellow"
-          onClick={() => open("resp")}
-        />
-      </div>
-
-      {/* Performance Detail */}
-      {popup === "performance" && (
-        <DetailPopup title="Desempenho do sono" onClose={close}>
-          <p className="text-xs text-text-tertiary mb-4">
-            O desempenho do sono mede quanto o tempo dormido atendeu à necessidade do seu corpo, incluindo a recuperação do esforço recente.
-          </p>
-          <DetailRow label="Pontuação de desempenho" value={d.sleepPerf ? `${d.sleepPerf}%` : "--"} />
-          <DetailRow label="Desempenho médio em 7 dias" value={d.avg7dPerf ? `${formatNumber(d.avg7dPerf, 0)}%` : "--"} />
-          <DetailRow label="Desempenho médio em 30 dias" value={d.avg30dPerf ? `${formatNumber(d.avg30dPerf, 0)}%` : "--"} />
-          <DetailRow label="Sono total" value={fmtDur(d.totalSleepMs)} />
-          <DetailRow label="Tempo na cama" value={fmtDur(d.totalInBedMs)} />
-          <DetailRow label="Necessidade de sono" value={sleepNeedMs > 0 ? fmtDur(sleepNeedMs) : "--"} hint="Necessidade básica + esforço − crédito de cochilos" />
-          {d.baselineMs && d.baselineMs > 0 && (
-            <DetailRow label="Necessidade básica" value={fmtDur(d.baselineMs)} hint="Necessidade básica de sono do seu corpo" />
-          )}
-          {d.needFromStrainMs && d.needFromStrainMs > 0 && (
-            <DetailRow label="Adicional devido ao esforço" value={`+${fmtDur(d.needFromStrainMs)}`} hint="Sono adicional necessário devido à atividade recente" />
-          )}
-          {overUnder != null && (
-            <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
-              <p className="text-xs text-text-secondary">
-                {overUnder > 0
-                  ? `Você dormiu ${fmtDur(overUnder)} a mais do que sua necessidade de sono — ótima recuperação!`
-                  : overUnder < 0
-                    ? `Você dormiu ${fmtDur(Math.abs(overUnder))} a menos do que sua necessidade de sono.`
-                    : "Você atingiu sua necessidade exata de sono."}
-              </p>
-            </div>
-          )}
-        </DetailPopup>
-      )}
-
-      {/* Efficiency Detail */}
-      {popup === "efficiency" && (
-        <DetailPopup title="Eficiência do sono" onClose={close}>
-          <p className="text-xs text-text-tertiary mb-4">
-            A eficiência mede a porcentagem do tempo na cama em que você dormiu. Valores maiores são melhores — busque 85% ou mais.
-          </p>
-          <DetailRow label="Eficiência" value={d.efficiency ? `${formatNumber(d.efficiency, 1)}%` : "--"} />
-          <DetailRow label="Média de 7 dias" value={d.avg7dEfficiency ? `${formatNumber(d.avg7dEfficiency, 1)}%` : "--"} />
-          <DetailRow label="Média de 30 dias" value={d.avg30dEfficiency ? `${formatNumber(d.avg30dEfficiency, 1)}%` : "--"} />
-          <DetailRow label="Tempo acordado na cama" value={fmtDur(d.awakeMs)} />
-          <DetailRow label="Despertares" value={d.disturbances ?? "--"} hint="Número de vezes que você acordou" />
-          <DetailRow label="Ciclos de sono" value={d.sleepCycles ?? "--"} hint="Ciclos completos de sono" />
-          <DetailRow label="Déficit de sono" value={sleepDebt != null && sleepDebt > 0 ? fmtDur(sleepDebt) : "Nenhum"} hint="Déficit de sono acumulado" />
-          {d.napCount > 0 && (
-            <DetailRow label="Cochilos" value={d.napCount.toLocaleString("pt-BR")} hint="Cochilos registrados no período" />
-          )}
-        </DetailPopup>
-      )}
-
-      {/* Stages Detail */}
-      {popup === "stages" && (
-        <DetailPopup title="Distribuição das fases do sono" onClose={close}>
-          <p className="text-xs text-text-tertiary mb-4">
-            Seu sono é composto pelas fases leve, REM e profunda. O sono profundo e o REM são essenciais para a recuperação física e a consolidação da memória.
-          </p>
-          <DetailRow label="Sono profundo" value={`${fmtDur(d.deepMs)} (${formatNumber(deepPct, 0)}%)`} hint="Ideal: 15%–20% — recuperação física e hormônio do crescimento" />
-          <DetailRow label="Sono REM" value={`${fmtDur(d.remMs)} (${formatNumber(remPct, 0)}%)`} hint="Ideal: 20%–25% — memória, aprendizado e processamento emocional" />
-          <DetailRow label="Sono leve" value={`${fmtDur(d.lightMs)} (${formatNumber(lightPct, 0)}%)`} hint="Sono de transição — geralmente 50%–60%" />
-          <DetailRow label="Tempo acordado" value={fmtDur(d.awakeMs)} />
-          {d.noDataMs > 0 && <DetailRow label="Sem dados" value={fmtDur(d.noDataMs)} />}
-          <DetailRow label="Duração média" value={d.avgDurationMs ? fmtDur(d.avgDurationMs) : "--"} hint="Média do período" />
-          {d.avgDeepPct != null && <DetailRow label="Sono profundo médio (%)" value={`${formatNumber(d.avgDeepPct, 0)}%`} />}
-          {d.avgRemPct != null && <DetailRow label="Sono REM médio (%)" value={`${formatNumber(d.avgRemPct, 0)}%`} />}
-          <DetailRow label="Regularidade do sono" value={d.consistency ? `${formatNumber(d.consistency, 0)}%` : "--"} hint="Regularidade dos seus horários de sono" />
-        </DetailPopup>
-      )}
-
-      {/* Respiratory Rate Detail */}
-      {popup === "resp" && (
-        <DetailPopup title="Frequência respiratória" onClose={close}>
-          <p className="text-xs text-text-tertiary mb-4">
-            A frequência respiratória habitual durante o sono é de 12 a 20 respirações por minuto. Alterações podem indicar doença, efeitos da altitude ou adaptações ao treino.
-          </p>
-          <DetailRow label="Atual" value={d.respRate ? `${formatNumber(d.respRate, 1)} bpm` : "--"} />
-          {d.respRate && (
-            <div className="mt-4 p-3 rounded-lg bg-surface-1/30">
-              <p className="text-xs text-text-secondary">
-                {d.respRate >= 12 && d.respRate <= 20
-                  ? "Sua frequência respiratória está dentro da faixa habitual."
-                  : d.respRate < 12
-                    ? "Sua frequência respiratória está abaixo da faixa habitual."
-                    : "Sua frequência respiratória está elevada — isso pode estar relacionado a doença ou altitude."}
-              </p>
-            </div>
-          )}
-        </DetailPopup>
-      )}
-    </>
-  );
+  const need = sleepNeedAssessment({ baseline_milli: d.baselineMs, sleep_debt_milli: d.sleepDebtMs, need_from_recent_strain_milli: d.needFromStrainMs, need_from_recent_nap_milli: d.needFromNapMs });
+  return <>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <MetricCard title="Desempenho do sono" value={numeric(d.sleepPerf, "%")} subtitle="Último sono principal" icon={<Moon className="h-4 w-4" />} accentColor="violet" onClick={() => open("performance")} visual={<MetricScale value={d.sleepPerf} label="Desempenho WHOOP" />} />
+      <MetricCard title="Tempo dormido no período" value={duration(d.summary.totalMs)} subtitle={`Inclui cochilos · ${d.summary.measuredCount}/${d.summary.recordCount} registros com duração`} icon={<BedDouble className="h-4 w-4" />} accentColor="blue" onClick={() => open("duration")} visual={<MetricComposition label="Composição do tempo dormido disponível" format={formatDuration} parts={[{ label: "Sono principal", value: d.summary.primaryMs, color: "var(--color-sleep)" }, { label: "Cochilos", value: d.summary.napMs, color: "var(--color-strain)" }, ...(d.summary.unclassifiedMs != null ? [{ label: "Sem classificação", value: d.summary.unclassifiedMs, color: "var(--color-text-muted)" }] : [])]} />} />
+      <MetricCard title="Eficiência" value={numeric(d.efficiency, "%")} subtitle="Último sono principal · WHOOP" icon={<Clock className="h-4 w-4" />} accentColor="green" onClick={() => open("efficiency")} visual={<MetricScale value={d.efficiency} label="Eficiência do sono" />} />
+      <MetricCard title="Frequência respiratória" value={numeric(d.respRate, " rpm")} subtitle="Último sono principal" icon={<Brain className="h-4 w-4" />} onClick={() => open("resp")} visual={<MetricHistory label="Respiração no sono principal" unit=" rpm" points={[...records].reverse().filter(r => r.nap === false).map(r => ({ date: r.end_time ?? r.start_time, label: formatRecordInterval(r.start_time, r.end_time), value: metric(r, "respiratory_rate") }))} />} />
+    </div>
+    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 rounded-xl border border-border-subtle p-3 text-sm">
+      <p><span className="text-text-secondary">Sono necessário: </span><strong>{duration(need.value)}</strong></p>
+      <p><span className="text-text-secondary">Dívida de sono: </span><strong>{duration(d.sleepDebtMs)}</strong></p>
+      {need.reason && <details className="w-full"><summary className="cursor-pointer text-accent-hover">Por que o sono necessário não está disponível?</summary><p className="mt-2 text-text-secondary">{need.reason}</p></details>}
+    </div>
+    {popup && <DetailPopup title={popup === "performance" ? "Desempenho e necessidade de sono" : popup === "duration" ? "Tempo dormido no período" : popup === "efficiency" ? "Eficiência e continuidade" : "Frequência respiratória"} onClose={close}>
+      <p className="text-xs text-text-tertiary mb-3">{popup === "duration" ? "Soma do sono efetivo de todos os registros encerrados na seleção, incluindo cochilos. Cada duração pertence ao registro completo, mesmo quando começa antes do período." : "Valores do último sono principal disponível. Médias e diferenças são calculadas somente entre sonos principais da seleção."}</p>
+      {popup === "performance" && <>
+        <DetailRow label="Desempenho WHOOP" value={numeric(d.sleepPerf, "%")} />
+        <DetailRow label="Média dos registros" value={numeric(d.avgPeriodPerf, "%")} />
+        <DetailRow label="Diferença para o registro anterior" value={numeric(d.perfDelta, " p.p.")} />
+        <DetailRow label="Sono necessário" value={duration(need.value)} />
+        {need.reason && <p role="status" className="my-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-sm text-text-secondary">{need.reason}</p>}
+        <details className="my-3 text-sm"><summary className="cursor-pointer text-accent-hover">Como este valor é calculado</summary><p className="mt-2 text-text-secondary">Somamos sono base, dívida de sono e esforço. O crédito dos cochilos reduz essa necessidade, usando os valores fornecidos pela WHOOP.</p></details>
+        <DetailRow label="Base" value={duration(d.baselineMs)} />
+        <DetailRow label="Dívida de sono" value={duration(d.sleepDebtMs)} />
+        <DetailRow label="Contribuição do esforço" value={duration(d.needFromStrainMs)} />
+        <DetailRow label="Ajuste dos cochilos" value={d.needFromNapMs == null ? "Não disponível" : `${d.needFromNapMs < 0 ? "−" : ""}${formatDuration(Math.abs(d.needFromNapMs))}`} />
+      </>}
+      {popup === "duration" && <>
+        <DetailRow label="Total dormido, incluindo cochilos" value={duration(d.summary.totalMs)} />
+        <DetailRow label="Sono principal acumulado" value={duration(d.summary.primaryMs)} />
+        <DetailRow label="Cochilos acumulados" value={duration(d.summary.napMs)} />
+        {d.summary.unclassifiedMs != null && <DetailRow label="Sono sem classificação" value={duration(d.summary.unclassifiedMs)} />}
+        <DetailRow label="Registros com duração disponível" value={`${d.summary.measuredCount}/${d.summary.recordCount}`} />
+        {d.summary.measuredCount < d.summary.recordCount && <p className="my-3 text-xs text-amber-300">Total parcial: há registros sem duração disponível.</p>}
+        <h4 className="my-3 text-sm font-semibold">Último sono principal</h4>
+        <DetailRow label="Sono efetivo do registro" value={duration(d.totalSleepMs)} />
+        <DetailRow label="Sono leve" value={duration(d.lightMs)} />
+        <DetailRow label="Sono profundo" value={duration(d.deepMs)} />
+        <DetailRow label="Sono REM" value={duration(d.remMs)} />
+        <DetailRow label="Tempo acordado" value={duration(d.awakeMs)} />
+        <DetailRow label="Sem dados durante a sessão" value={duration(d.noDataMs)} />
+        <DetailRow label="Duração média dos sonos principais" value={duration(d.avgDurationMs)} />
+        <DetailRow label="Proporção média de sono profundo" value={numeric(d.avgDeepPct, "%")} />
+        <DetailRow label="Proporção média de sono REM" value={numeric(d.avgRemPct, "%")} />
+        <DetailRow label="Cochilos no período" value={d.napCount} />
+      </>}
+      {popup === "efficiency" && <>
+        <DetailRow label="Eficiência WHOOP" value={numeric(d.efficiency, "%")} />
+        <DetailRow label="Média dos registros" value={numeric(d.avgPeriodEfficiency, "%")} />
+        <DetailRow label="Consistência WHOOP" value={numeric(d.consistency, "%")} />
+        <DetailRow label="Tempo na cama" value={duration(d.totalInBedMs)} />
+        <DetailRow label="Despertares" value={d.disturbances ?? "Não disponível"} />
+        <DetailRow label="Ciclos de sono" value={d.sleepCycles ?? "Não disponível"} />
+      </>}
+      {popup === "resp" && <DetailRow label="Frequência respiratória WHOOP" value={numeric(d.respRate, " respirações/min")} />}
+    </DetailPopup>}
+  </>;
 }

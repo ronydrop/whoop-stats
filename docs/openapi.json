@@ -1,549 +1,1099 @@
 {
-    "openapi": "3.0.0",
-    "info": {
-        "description": "High-performance RESTful API for WHOOP data.",
-        "title": "WHOOP Stats API",
-        "contact": {},
-        "version": "1.0"
-    },
-    "paths": {
-        "/api/v1/cycles": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Fetches cycles using cursor-based pagination",
-                "tags": [
-                    "cycles"
-                ],
-                "summary": "Get cycles",
-                "parameters": [
-                    {
-                        "description": "Cursor timestamp (RFC3339)",
-                        "name": "cursor",
-                        "in": "query",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/github_com_arvind_whoop-stats_internal_db.Cycle"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
+  "openapi": "3.0.3",
+  "info": {
+    "contact": {}
+  },
+  "paths": {
+    "/api/v1/cycles": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Fetches cycles using cursor-based pagination",
+        "tags": [
+          "cycles"
+        ],
+        "summary": "Get cycles",
+        "parameters": [
+          {
+            "description": "Data inicial em Brasília (AAAA-MM-DD)",
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
-        },
-        "/api/v1/insights": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Fetches daily strain and recovery from continuous aggregates for the last 30 days",
-                "tags": [
-                    "insights"
-                ],
-                "summary": "Get insights",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
+          },
+          {
+            "description": "Data final inclusiva em Brasília (AAAA-MM-DD)",
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
-        },
-        "/api/v1/sleeps": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Fetches sleeps using cursor-based pagination",
-                "tags": [
-                    "sleeps"
-                ],
-                "summary": "Get sleeps",
-                "parameters": [
-                    {
-                        "description": "Cursor timestamp (RFC3339)",
-                        "name": "cursor",
-                        "in": "query",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/github_com_arvind_whoop-stats_internal_db.Sleep"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
+          },
+          {
+            "description": "Cursor opaco da página anterior",
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
-        },
-        "/api/v1/sync": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Enqueues a sync job for the user",
-                "tags": [
-                    "sync"
-                ],
-                "summary": "Trigger ad-hoc sync",
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "429": {
-                        "description": "Too Many Requests",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    }
-                }
+          },
+          {
+            "description": "Number of records (default 50, max 200)",
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
             }
-        },
-        "/api/v1/user/profile": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Fetches the user profile from the WHOOP API",
-                "tags": [
-                    "user"
-                ],
-                "summary": "Get basic profile info",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "object",
-                                    "additionalProperties": true
-                                }
-                            }
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.CyclesPage"
                 }
+              }
             }
-        },
-        "/api/v1/workouts": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Fetches workouts using cursor-based pagination",
-                "tags": [
-                    "workouts"
-                ],
-                "summary": "Get workouts",
-                "parameters": [
-                    {
-                        "description": "Cursor timestamp (RFC3339)",
-                        "name": "cursor",
-                        "in": "query",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/github_com_arvind_whoop-stats_internal_db.Workout"
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/internal_api.ErrorResponse"
-                                }
-                            }
-                        }
-                    }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
                 }
+              }
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          }
         }
+      }
     },
-    "components": {
-        "securitySchemes": {
-            "BearerAuth": {
-                "type": "apiKey",
-                "name": "Authorization",
-                "in": "header"
+    "/api/v1/insights": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Fetches daily strain and recovery from continuous aggregates for the last 30 days",
+        "tags": [
+          "insights"
+        ],
+        "summary": "Get insights",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
             }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          }
         },
-        "schemas": {
-            "github_com_arvind_whoop-stats_internal_db.Cycle": {
-                "type": "object",
-                "properties": {
-                    "average_heart_rate": {
-                        "type": "integer"
-                    },
-                    "created_at": {
-                        "type": "string"
-                    },
-                    "end_time": {
-                        "type": "string"
-                    },
-                    "id": {
-                        "type": "integer"
-                    },
-                    "kilojoule": {
-                        "type": "number"
-                    },
-                    "max_heart_rate": {
-                        "type": "integer"
-                    },
-                    "score_state": {
-                        "type": "string"
-                    },
-                    "start_time": {
-                        "type": "string"
-                    },
-                    "strain": {
-                        "type": "number"
-                    },
-                    "timezone_offset": {
-                        "type": "string"
-                    },
-                    "updated_at": {
-                        "type": "string"
-                    },
-                    "user_id": {
-                        "type": "string"
-                    }
-                }
-            },
-            "github_com_arvind_whoop-stats_internal_db.Sleep": {
-                "type": "object",
-                "properties": {
-                    "baseline_milli": {
-                        "type": "integer"
-                    },
-                    "created_at": {
-                        "type": "string"
-                    },
-                    "cycle_id": {
-                        "type": "integer"
-                    },
-                    "disturbance_count": {
-                        "type": "integer"
-                    },
-                    "end_time": {
-                        "type": "string"
-                    },
-                    "id": {
-                        "type": "integer"
-                    },
-                    "nap": {
-                        "type": "boolean"
-                    },
-                    "need_from_recent_nap_milli": {
-                        "type": "integer"
-                    },
-                    "need_from_recent_strain_milli": {
-                        "type": "integer"
-                    },
-                    "performance_score": {
-                        "type": "number"
-                    },
-                    "respiratory_rate": {
-                        "type": "number"
-                    },
-                    "score_state": {
-                        "type": "string"
-                    },
-                    "sleep_consistency_percentage": {
-                        "type": "number"
-                    },
-                    "sleep_cycle_count": {
-                        "type": "integer"
-                    },
-                    "sleep_debt_milli": {
-                        "type": "integer"
-                    },
-                    "sleep_efficiency_percentage": {
-                        "type": "number"
-                    },
-                    "start_time": {
-                        "type": "string"
-                    },
-                    "timezone_offset": {
-                        "type": "string"
-                    },
-                    "total_awake_time_milli": {
-                        "type": "integer"
-                    },
-                    "total_in_bed_time_milli": {
-                        "type": "integer"
-                    },
-                    "total_light_sleep_time_milli": {
-                        "type": "integer"
-                    },
-                    "total_no_data_time_milli": {
-                        "type": "integer"
-                    },
-                    "total_rem_sleep_time_milli": {
-                        "type": "integer"
-                    },
-                    "total_slow_wave_sleep_time_milli": {
-                        "type": "integer"
-                    },
-                    "updated_at": {
-                        "type": "string"
-                    },
-                    "user_id": {
-                        "type": "string"
-                    }
-                }
-            },
-            "github_com_arvind_whoop-stats_internal_db.Workout": {
-                "type": "object",
-                "properties": {
-                    "altitude_change_meter": {
-                        "type": "number"
-                    },
-                    "altitude_gain_meter": {
-                        "type": "number"
-                    },
-                    "average_heart_rate": {
-                        "type": "integer"
-                    },
-                    "created_at": {
-                        "type": "string"
-                    },
-                    "distance_meter": {
-                        "type": "number"
-                    },
-                    "end_time": {
-                        "type": "string"
-                    },
-                    "id": {
-                        "type": "integer"
-                    },
-                    "kilojoule": {
-                        "type": "number"
-                    },
-                    "max_heart_rate": {
-                        "type": "integer"
-                    },
-                    "percent_recorded": {
-                        "type": "number"
-                    },
-                    "sport_id": {
-                        "type": "integer"
-                    },
-                    "sport_name": {
-                        "type": "string"
-                    },
-                    "score_state": {
-                        "type": "string"
-                    },
-                    "start_time": {
-                        "type": "string"
-                    },
-                    "strain": {
-                        "type": "number"
-                    },
-                    "timezone_offset": {
-                        "type": "string"
-                    },
-                    "updated_at": {
-                        "type": "string"
-                    },
-                    "user_id": {
-                        "type": "string"
-                    },
-                    "zone_five_milli": {
-                        "type": "integer"
-                    },
-                    "zone_four_milli": {
-                        "type": "integer"
-                    },
-                    "zone_one_milli": {
-                        "type": "integer"
-                    },
-                    "zone_three_milli": {
-                        "type": "integer"
-                    },
-                    "zone_two_milli": {
-                        "type": "integer"
-                    },
-                    "zone_zero_milli": {
-                        "type": "integer"
-                    }
-                }
-            },
-            "internal_api.ErrorResponse": {
-                "type": "object",
-                "properties": {
-                    "error": {
-                        "type": "object",
-                        "properties": {
-                            "code": {
-                                "type": "string"
-                            },
-                            "message": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
+        "parameters": []
+      }
+    },
+    "/api/v1/recoveries": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Fetches recoveries using cursor-based pagination",
+        "tags": [
+          "recoveries"
+        ],
+        "summary": "Get recoveries",
+        "parameters": [
+          {
+            "description": "Data inicial em Brasília (AAAA-MM-DD)",
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
+          },
+          {
+            "description": "Data final inclusiva em Brasília (AAAA-MM-DD)",
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Cursor opaco da página anterior",
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Number of records (default 50, max 200)",
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.RecoveriesPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          }
         }
+      }
+    },
+    "/api/v1/sleeps": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Fetches sleeps using cursor-based pagination",
+        "tags": [
+          "sleeps"
+        ],
+        "summary": "Get sleeps",
+        "parameters": [
+          {
+            "description": "Data inicial em Brasília (AAAA-MM-DD)",
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Data final inclusiva em Brasília (AAAA-MM-DD)",
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Cursor opaco da página anterior",
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Number of records (default 50, max 200)",
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.SleepsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sync": {
+      "post": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Enqueues a background sync job for the authenticated user",
+        "tags": [
+          "sync"
+        ],
+        "summary": "Trigger ad-hoc sync",
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": []
+      }
+    },
+    "/api/v1/sync/status": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "summary": "Consultar o estado persistido da sincronização",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.SyncStatusResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": []
+      }
+    },
+    "/api/v1/user/profile": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Fetches the user profile from the WHOOP API",
+        "tags": [
+          "user"
+        ],
+        "summary": "Get basic profile info",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": []
+      }
+    },
+    "/api/v1/workouts": {
+      "get": {
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "description": "Fetches workouts using cursor-based pagination",
+        "tags": [
+          "workouts"
+        ],
+        "summary": "Get workouts",
+        "parameters": [
+          {
+            "description": "Data inicial em Brasília (AAAA-MM-DD)",
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Data final inclusiva em Brasília (AAAA-MM-DD)",
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Cursor opaco da página anterior",
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Number of records (default 50, max 200)",
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.WorkoutsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/internal_api.ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
+  },
+  "components": {
+    "schemas": {
+      "github_com_arvind_whoop-stats_internal_db.Cycle": {
+        "type": "object",
+        "properties": {
+          "average_heart_rate": {
+            "type": "integer",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "end_time": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "kilojoule": {
+            "type": "number",
+            "nullable": true
+          },
+          "max_heart_rate": {
+            "type": "integer",
+            "nullable": true
+          },
+          "score_state": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "step_count": {
+            "type": "integer",
+            "nullable": true
+          },
+          "strain": {
+            "type": "number",
+            "nullable": true
+          },
+          "timezone_offset": {
+            "type": "object",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "average_heart_rate",
+          "created_at",
+          "end_time",
+          "id",
+          "kilojoule",
+          "max_heart_rate",
+          "score_state",
+          "start_time",
+          "step_count",
+          "strain",
+          "timezone_offset",
+          "updated_at",
+          "user_id"
+        ]
+      },
+      "github_com_arvind_whoop-stats_internal_db.GetRecoveriesRow": {
+        "type": "object",
+        "properties": {
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cycle_end": {
+            "type": "string",
+            "nullable": true
+          },
+          "cycle_start": {
+            "type": "string",
+            "nullable": true
+          },
+          "hrv_rmssd_milli": {
+            "type": "number",
+            "nullable": true
+          },
+          "id": {
+            "type": "integer"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recovery_score": {
+            "type": "number",
+            "nullable": true
+          },
+          "reference_time": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "resting_heart_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "score_state": {
+            "type": "string",
+            "nullable": true
+          },
+          "skin_temp_celsius": {
+            "type": "number",
+            "nullable": true
+          },
+          "sleep_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "spo2_percentage": {
+            "type": "number",
+            "nullable": true
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timezone_offset": {
+            "type": "object",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user_calibrating": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "created_at",
+          "cycle_end",
+          "cycle_start",
+          "hrv_rmssd_milli",
+          "id",
+          "recorded_at",
+          "recovery_score",
+          "reference_time",
+          "resting_heart_rate",
+          "score_state",
+          "skin_temp_celsius",
+          "sleep_id",
+          "spo2_percentage",
+          "start_time",
+          "timezone_offset",
+          "updated_at",
+          "user_calibrating",
+          "user_id"
+        ]
+      },
+      "github_com_arvind_whoop-stats_internal_db.Sleep": {
+        "type": "object",
+        "properties": {
+          "baseline_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cycle_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "disturbance_count": {
+            "type": "integer",
+            "nullable": true
+          },
+          "end_time": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "nap": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "need_from_recent_nap_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "need_from_recent_strain_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "performance_score": {
+            "type": "number",
+            "nullable": true
+          },
+          "respiratory_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "score_state": {
+            "type": "string",
+            "nullable": true
+          },
+          "sleep_consistency_percentage": {
+            "type": "number",
+            "nullable": true
+          },
+          "sleep_cycle_count": {
+            "type": "integer",
+            "nullable": true
+          },
+          "sleep_debt_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "sleep_efficiency_percentage": {
+            "type": "number",
+            "nullable": true
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "timezone_offset": {
+            "type": "object",
+            "nullable": true
+          },
+          "total_awake_time_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "total_in_bed_time_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "total_light_sleep_time_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "total_no_data_time_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "total_rem_sleep_time_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "total_slow_wave_sleep_time_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "baseline_milli",
+          "created_at",
+          "cycle_id",
+          "disturbance_count",
+          "end_time",
+          "id",
+          "nap",
+          "need_from_recent_nap_milli",
+          "need_from_recent_strain_milli",
+          "performance_score",
+          "respiratory_rate",
+          "score_state",
+          "sleep_consistency_percentage",
+          "sleep_cycle_count",
+          "sleep_debt_milli",
+          "sleep_efficiency_percentage",
+          "start_time",
+          "timezone_offset",
+          "total_awake_time_milli",
+          "total_in_bed_time_milli",
+          "total_light_sleep_time_milli",
+          "total_no_data_time_milli",
+          "total_rem_sleep_time_milli",
+          "total_slow_wave_sleep_time_milli",
+          "updated_at",
+          "user_id"
+        ]
+      },
+      "github_com_arvind_whoop-stats_internal_db.SyncStatus": {
+        "type": "object",
+        "properties": {
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "finished_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "last_success_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "state": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error_message",
+          "finished_at",
+          "last_success_at",
+          "resource",
+          "started_at",
+          "state",
+          "user_id"
+        ]
+      },
+      "github_com_arvind_whoop-stats_internal_db.Workout": {
+        "type": "object",
+        "properties": {
+          "altitude_change_meter": {
+            "type": "number",
+            "nullable": true
+          },
+          "altitude_gain_meter": {
+            "type": "number",
+            "nullable": true
+          },
+          "average_heart_rate": {
+            "type": "integer",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "distance_meter": {
+            "type": "number",
+            "nullable": true
+          },
+          "end_time": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kilojoule": {
+            "type": "number",
+            "nullable": true
+          },
+          "max_heart_rate": {
+            "type": "integer",
+            "nullable": true
+          },
+          "percent_recorded": {
+            "type": "number",
+            "nullable": true
+          },
+          "score_state": {
+            "type": "string",
+            "nullable": true
+          },
+          "sport_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "sport_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "strain": {
+            "type": "number",
+            "nullable": true
+          },
+          "timezone_offset": {
+            "type": "object",
+            "nullable": true
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "zone_five_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "zone_four_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "zone_one_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "zone_three_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "zone_two_milli": {
+            "type": "integer",
+            "nullable": true
+          },
+          "zone_zero_milli": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "required": [
+          "altitude_change_meter",
+          "altitude_gain_meter",
+          "average_heart_rate",
+          "created_at",
+          "distance_meter",
+          "end_time",
+          "id",
+          "kilojoule",
+          "max_heart_rate",
+          "percent_recorded",
+          "score_state",
+          "sport_id",
+          "sport_name",
+          "start_time",
+          "strain",
+          "timezone_offset",
+          "updated_at",
+          "user_id",
+          "zone_five_milli",
+          "zone_four_milli",
+          "zone_one_milli",
+          "zone_three_milli",
+          "zone_two_milli",
+          "zone_zero_milli"
+        ]
+      },
+      "internal_api.CyclesPage": {
+        "type": "object",
+        "properties": {
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/github_com_arvind_whoop-stats_internal_db.Cycle"
+            }
+          }
+        },
+        "required": [
+          "next_cursor",
+          "records"
+        ]
+      },
+      "internal_api.ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "internal_api.RecoveriesPage": {
+        "type": "object",
+        "properties": {
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/github_com_arvind_whoop-stats_internal_db.GetRecoveriesRow"
+            }
+          }
+        },
+        "required": [
+          "next_cursor",
+          "records"
+        ]
+      },
+      "internal_api.SleepsPage": {
+        "type": "object",
+        "properties": {
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/github_com_arvind_whoop-stats_internal_db.Sleep"
+            }
+          }
+        },
+        "required": [
+          "next_cursor",
+          "records"
+        ]
+      },
+      "internal_api.SyncStatusResponse": {
+        "type": "object",
+        "properties": {
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/github_com_arvind_whoop-stats_internal_db.SyncStatus"
+            }
+          },
+          "running": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "resources",
+          "running"
+        ]
+      },
+      "internal_api.WorkoutsPage": {
+        "type": "object",
+        "properties": {
+          "next_cursor": {
+            "type": "string",
+            "nullable": true
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/github_com_arvind_whoop-stats_internal_db.Workout"
+            }
+          }
+        },
+        "required": [
+          "next_cursor",
+          "records"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
 }

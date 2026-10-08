@@ -17,9 +17,15 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: {
-                    /** @description Cursor timestamp (RFC3339) */
+                query: {
+                    /** @description Data inicial em Brasília (AAAA-MM-DD) */
+                    start: string;
+                    /** @description Data final inclusiva em Brasília (AAAA-MM-DD) */
+                    end: string;
+                    /** @description Cursor opaco da página anterior */
                     cursor?: string;
+                    /** @description Number of records (default 50, max 200) */
+                    limit?: number;
                 };
                 header?: never;
                 path?: never;
@@ -33,7 +39,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_arvind_whoop-stats_internal_db.Cycle"][];
+                        "application/json": components["schemas"]["internal_api.CyclesPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -114,7 +120,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/sleeps": {
+    "/api/v1/recoveries": {
         parameters: {
             query?: never;
             header?: never;
@@ -122,14 +128,20 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get sleeps
-         * @description Fetches sleeps using cursor-based pagination
+         * Get recoveries
+         * @description Fetches recoveries using cursor-based pagination
          */
         get: {
             parameters: {
-                query?: {
-                    /** @description Cursor timestamp (RFC3339) */
+                query: {
+                    /** @description Data inicial em Brasília (AAAA-MM-DD) */
+                    start: string;
+                    /** @description Data final inclusiva em Brasília (AAAA-MM-DD) */
+                    end: string;
+                    /** @description Cursor opaco da página anterior */
                     cursor?: string;
+                    /** @description Number of records (default 50, max 200) */
+                    limit?: number;
                 };
                 header?: never;
                 path?: never;
@@ -143,7 +155,73 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_arvind_whoop-stats_internal_db.Sleep"][];
+                        "application/json": components["schemas"]["internal_api.RecoveriesPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["internal_api.ErrorResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["internal_api.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sleeps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get sleeps
+         * @description Fetches sleeps using cursor-based pagination
+         */
+        get: {
+            parameters: {
+                query: {
+                    /** @description Data inicial em Brasília (AAAA-MM-DD) */
+                    start: string;
+                    /** @description Data final inclusiva em Brasília (AAAA-MM-DD) */
+                    end: string;
+                    /** @description Cursor opaco da página anterior */
+                    cursor?: string;
+                    /** @description Number of records (default 50, max 200) */
+                    limit?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["internal_api.SleepsPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -185,7 +263,7 @@ export interface paths {
         put?: never;
         /**
          * Trigger ad-hoc sync
-         * @description Enqueues a sync job for the user
+         * @description Enqueues a background sync job for the authenticated user
          */
         post: {
             parameters: {
@@ -227,6 +305,51 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/sync/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar o estado persistido da sincronização */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["internal_api.SyncStatusResponse"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["internal_api.ErrorResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -305,9 +428,15 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: {
-                    /** @description Cursor timestamp (RFC3339) */
+                query: {
+                    /** @description Data inicial em Brasília (AAAA-MM-DD) */
+                    start: string;
+                    /** @description Data final inclusiva em Brasília (AAAA-MM-DD) */
+                    end: string;
+                    /** @description Cursor opaco da página anterior */
                     cursor?: string;
+                    /** @description Number of records (default 50, max 200) */
+                    limit?: number;
                 };
                 header?: never;
                 path?: never;
@@ -321,67 +450,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["github_com_arvind_whoop-stats_internal_db.Workout"][];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["internal_api.ErrorResponse"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["internal_api.ErrorResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/recoveries": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get recoveries
-         * @description Fetches recoveries using cursor-based pagination
-         */
-        get: {
-            parameters: {
-                query?: {
-                    /** @description Cursor timestamp (RFC3339) */
-                    cursor?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["github_com_arvind_whoop-stats_internal_db.Recovery"][];
+                        "application/json": components["schemas"]["internal_api.WorkoutsPage"];
                     };
                 };
                 /** @description Bad Request */
@@ -417,86 +486,148 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         "github_com_arvind_whoop-stats_internal_db.Cycle": {
-            average_heart_rate?: number;
-            created_at?: string;
-            end_time?: string;
-            id?: number;
-            kilojoule?: number;
-            max_heart_rate?: number;
-            start_time?: string;
-            strain?: number;
-            timezone_offset?: string;
-            updated_at?: string;
-            user_id?: string;
+            average_heart_rate: number | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            end_time: string | null;
+            id: number;
+            kilojoule: number | null;
+            max_heart_rate: number | null;
+            score_state: string | null;
+            /** Format: date-time */
+            start_time: string;
+            step_count: number | null;
+            strain: number | null;
+            timezone_offset: Record<string, never> | null;
+            /** Format: date-time */
+            updated_at: string;
+            user_id: string;
+        };
+        "github_com_arvind_whoop-stats_internal_db.GetRecoveriesRow": {
+            /** Format: date-time */
+            created_at: string;
+            cycle_end: string | null;
+            cycle_start: string | null;
+            hrv_rmssd_milli: number | null;
+            id: number;
+            /** Format: date-time */
+            recorded_at: string;
+            recovery_score: number | null;
+            /** Format: date-time */
+            reference_time: string | null;
+            resting_heart_rate: number | null;
+            score_state: string | null;
+            skin_temp_celsius: number | null;
+            sleep_id: string | null;
+            spo2_percentage: number | null;
+            /** Format: date-time */
+            start_time: string;
+            timezone_offset: Record<string, never> | null;
+            /** Format: date-time */
+            updated_at: string;
+            user_calibrating: boolean | null;
+            user_id: string;
         };
         "github_com_arvind_whoop-stats_internal_db.Sleep": {
-            created_at?: string;
-            disturbance_count?: number;
-            end_time?: string;
-            id?: number;
-            nap?: boolean;
-            performance_score?: number;
-            respiratory_rate?: number;
-            sleep_consistency_percentage?: number;
-            sleep_cycle_count?: number;
-            sleep_debt_milli?: number;
-            sleep_efficiency_percentage?: number;
-            start_time?: string;
-            timezone_offset?: string;
-            total_awake_time_milli?: number;
-            total_in_bed_time_milli?: number;
-            total_light_sleep_time_milli?: number;
-            total_no_data_time_milli?: number;
-            total_rem_sleep_time_milli?: number;
-            total_slow_wave_sleep_time_milli?: number;
-            updated_at?: string;
-            user_id?: string;
+            baseline_milli: number | null;
+            /** Format: date-time */
+            created_at: string;
+            cycle_id: number | null;
+            disturbance_count: number | null;
+            /** Format: date-time */
+            end_time: string | null;
+            id: string;
+            nap: boolean | null;
+            need_from_recent_nap_milli: number | null;
+            need_from_recent_strain_milli: number | null;
+            performance_score: number | null;
+            respiratory_rate: number | null;
+            score_state: string | null;
+            sleep_consistency_percentage: number | null;
+            sleep_cycle_count: number | null;
+            sleep_debt_milli: number | null;
+            sleep_efficiency_percentage: number | null;
+            /** Format: date-time */
+            start_time: string;
+            timezone_offset: Record<string, never> | null;
+            total_awake_time_milli: number | null;
+            total_in_bed_time_milli: number | null;
+            total_light_sleep_time_milli: number | null;
+            total_no_data_time_milli: number | null;
+            total_rem_sleep_time_milli: number | null;
+            total_slow_wave_sleep_time_milli: number | null;
+            /** Format: date-time */
+            updated_at: string;
+            user_id: string;
+        };
+        "github_com_arvind_whoop-stats_internal_db.SyncStatus": {
+            error_message: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** Format: date-time */
+            last_success_at: string | null;
+            resource: string;
+            /** Format: date-time */
+            started_at: string;
+            state: string;
+            user_id: string;
         };
         "github_com_arvind_whoop-stats_internal_db.Workout": {
-            altitude_change_meter?: number;
-            altitude_gain_meter?: number;
-            average_heart_rate?: number;
-            created_at?: string;
-            distance_meter?: number;
-            end_time?: string;
-            id?: number;
-            kilojoule?: number;
-            max_heart_rate?: number;
-            percent_recorded?: number;
-            sport_id?: number;
-            start_time?: string;
-            strain?: number;
-            timezone_offset?: string;
-            updated_at?: string;
-            user_id?: string;
-            zone_five_milli?: number;
-            zone_four_milli?: number;
-            zone_one_milli?: number;
-            zone_three_milli?: number;
-            zone_two_milli?: number;
-            zone_zero_milli?: number;
+            altitude_change_meter: number | null;
+            altitude_gain_meter: number | null;
+            average_heart_rate: number | null;
+            /** Format: date-time */
+            created_at: string;
+            distance_meter: number | null;
+            /** Format: date-time */
+            end_time: string | null;
+            id: string;
+            kilojoule: number | null;
+            max_heart_rate: number | null;
+            percent_recorded: number | null;
+            score_state: string | null;
+            sport_id: number | null;
+            sport_name: string | null;
+            /** Format: date-time */
+            start_time: string;
+            strain: number | null;
+            timezone_offset: Record<string, never> | null;
+            /** Format: date-time */
+            updated_at: string;
+            user_id: string;
+            zone_five_milli: number | null;
+            zone_four_milli: number | null;
+            zone_one_milli: number | null;
+            zone_three_milli: number | null;
+            zone_two_milli: number | null;
+            zone_zero_milli: number | null;
+        };
+        "internal_api.CyclesPage": {
+            next_cursor: string | null;
+            records: components["schemas"]["github_com_arvind_whoop-stats_internal_db.Cycle"][];
         };
         "internal_api.ErrorResponse": {
-            error?: {
+            error: {
                 code?: string;
                 message?: string;
             };
         };
-        "github_com_arvind_whoop-stats_internal_db.Recovery": {
-            id?: number;
-            user_id?: string;
-            start_time?: string;
-            timezone_offset?: string;
-            recovery_score?: number;
-            resting_heart_rate?: number;
-            hrv_rmssd_milli?: number;
-            spo2_percentage?: number;
-            skin_temp_celsius?: number;
-            sleep_id?: number;
-            score_state?: string;
-            user_calibrating?: boolean;
-            created_at?: string;
-            updated_at?: string;
+        "internal_api.RecoveriesPage": {
+            next_cursor: string | null;
+            records: components["schemas"]["github_com_arvind_whoop-stats_internal_db.GetRecoveriesRow"][];
+        };
+        "internal_api.SleepsPage": {
+            next_cursor: string | null;
+            records: components["schemas"]["github_com_arvind_whoop-stats_internal_db.Sleep"][];
+        };
+        "internal_api.SyncStatusResponse": {
+            resources: components["schemas"]["github_com_arvind_whoop-stats_internal_db.SyncStatus"][];
+            running: boolean;
+        };
+        "internal_api.WorkoutsPage": {
+            next_cursor: string | null;
+            records: components["schemas"]["github_com_arvind_whoop-stats_internal_db.Workout"][];
         };
     };
     responses: never;

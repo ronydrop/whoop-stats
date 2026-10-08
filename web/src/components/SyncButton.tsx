@@ -1,42 +1,43 @@
 "use client";
-
-import { useTransition } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
-import { syncWhoopData } from "@/app/actions";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { syncWhoopData, getSyncStatus } from "@/app/actions";
+import { formatRecordInterval } from "@/lib/format";
+import type { SyncStatus } from "@/lib/types";
 
+const labels: Record<string, string> = { cycles_recoveries: "Ciclos e recuperação", sleeps: "Sono", workouts: "Treinos", profile: "Perfil" };
 export function SyncButton() {
-  const [isPending, startTransition] = useTransition();
-
-  const handleSync = () => {
-    startTransition(async () => {
-      try {
-        await syncWhoopData();
-        toast.success("Sincronização iniciada", {
-          description: "Seus dados estão sendo atualizados em segundo plano.",
-        });
-      } catch (err: unknown) {
-        toast.error("Falha na sincronização", {
-          description: err instanceof Error ? err.message : String(err),
-        });
-      }
-    });
-  };
-
-  return (
-    <button
-      onClick={handleSync}
-      disabled={isPending}
-      className={cn(
-        "group flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-medium tracking-tight transition-all duration-300",
-        "border border-white/[0.08] bg-zinc-900/50 text-zinc-300 backdrop-blur-md",
-        "hover:border-white/[0.15] hover:bg-zinc-800 hover:text-white",
-        "active:scale-95 disabled:pointer-events-none disabled:opacity-50"
-      )}
-    >
-      <RefreshCw className={cn("w-4 h-4 text-zinc-400 group-hover:text-zinc-300", isPending && "animate-spin")} />
-      {isPending ? "Sincronizando..." : "Sincronizar"}
-    </button>
-  );
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const lastVersion = useRef<string | null>(null);
+  const router = useRouter();
+  const refresh = useCallback(async () => {
+    try {
+      const next = await getSyncStatus();
+      const version = next.resources.map(r => r.last_success_at ?? "").join("|");
+      if (lastVersion.current !== null && version !== lastVersion.current) router.refresh();
+      lastVersion.current = version;
+      setStatus(next); setError(null);
+    } catch { setError("Estado da sincronização indisponível. Os dados exibidos podem estar desatualizados."); }
+  }, [router]);
+  useEffect(() => { const first = setTimeout(() => void refresh(), 0); const timer = setInterval(() => void refresh(), status?.running || starting ? 2000 : 15000); return () => { clearTimeout(first); clearInterval(timer); }; }, [refresh, status?.running, starting]);
+  async function start() {
+    setStarting(true); setRequestError(null);
+    try {
+      const result = await syncWhoopData();
+      if (result.ok) await refresh(); else setRequestError(result.message);
+    } catch { setRequestError("Não foi possível iniciar a sincronização. Tente novamente."); } finally { setStarting(false); }
+  }
+  const failures = status?.resources.filter(r => r.state === "error" || r.state === "interrupted" || (r.state === "running" && !status?.running)) ?? [];
+  const lastSuccess = status?.resources.map(r => r.last_success_at).filter((v): v is string => !!v).sort().at(-1);
+  return <div className="space-y-2 text-xs text-text-secondary">
+    <div className="flex flex-wrap items-center gap-3">
+      <button onClick={start} disabled={starting || status?.running} className="flex gap-2 items-center rounded-full border border-border-subtle px-4 py-2 text-sm disabled:opacity-60"><RefreshCw className={`h-4 w-4 ${status?.running ? "animate-spin motion-reduce:animate-none" : ""}`} />{starting || status?.running ? "Sincronizando…" : "Sincronizar"}</button>
+      <p role="status" aria-live="polite">{requestError ?? error ?? (status?.running ? "Atualização em andamento" : failures.length ? "Alguns dados não foram atualizados" : lastSuccess ? "Últimos dados recebidos em: " + formatRecordInterval(lastSuccess, lastSuccess).split(" → ")[0] : "Ainda não há atualização confirmada")}</p>
+    </div>
+    {status && <details><summary className="cursor-pointer text-text-tertiary">Detalhes da atualização</summary><ul className="mt-2 space-y-1">{status.resources.map(r => <li key={r.resource}>{labels[r.resource] ?? r.resource}: {r.state === "success" ? "Concluído" : r.state === "running" ? "Em andamento" : "Não concluído"}{r.last_success_at ? ` · Atualizado em: ${formatRecordInterval(r.last_success_at, r.last_success_at).split(" → ")[0]}` : " · Ainda não atualizado"}{r.error_message ? ` · ${r.error_message}` : ""}</li>)}</ul></details>}
+  </div>;
 }

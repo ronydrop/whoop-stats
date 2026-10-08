@@ -1,3 +1,51 @@
+# WHOOP Stats — painel pessoal em português
+
+## Windows, sem Docker
+
+Use `Iniciar WHOOP.cmd` (ou o atalho existente). O painel abre em `http://localhost:3032`; backend e PostgreSQL usam somente loopback, portas 8085 e 55439. Abrir novamente reutiliza os processos identificados e verifica a saúde. Uma porta ocupada por outro processo gera diagnóstico sem encerrá-lo. O estado de cada processo é salvo imediatamente em `data/processos.json`, inclusive se a etapa seguinte falhar.
+
+`Parar WHOOP.cmd` encerra somente os processos identificados da instalação. Configuração e credenciais permanecem em `.env`, `web/.env.local` e no armazenamento local ignorado pelo Git. Os logs de execução ficam em `Documents/Codex/whoop-stats/execucao-local`. Não compartilhe banco, logs privados, tokens ou capturas com dados reais.
+
+## Períodos e significado dos dados
+
+As cinco telas compartilham `start/end` na URL. `day` abre um dia dentro desse período, `compare` escolhe o segundo dia, e `month` controla o calendário. Datas civis e horários usam Brasília. O limite é 366 dias.
+
+Ciclos, sono e treinos são intervalos completos. Um ciclo que atravessa vários dias aparece em cada detalhe pertinente, mas é contado uma vez por consulta; seu esforço e suas calorias não são divididos por dia ou por hora. Recuperação referencia o término do sono associado; o horário original de criação fica separado como `recorded_at`. Sem vínculo, não se inventa o horário fisiológico. Ausência é `null`, zero válido é preservado, e pontuações pendentes não entram como valores concluídos.
+
+Necessidade de sono = base + dívida + esforço + contribuição assinada dos cochilos. Energia é convertida de kJ para kcal dividindo por 4,184, com arredondamento apenas na apresentação. Sono principal e cochilos são separados. Gráficos mostram pontos de registros e oferecem tabela; não representam amostras contínuas.
+
+## Sincronização e contratos
+
+As migrações aditivas `000002_sync_status.up.sql` e `000003_cycle_steps.up.sql` são aplicadas pelo iniciador, sem reset. A atualização automática e a manual compartilham a mesma exclusão mútua. `GET /api/v1/sync/status` informa cada recurso, a última persistência bem-sucedida e falhas sanitizadas. O aceite de `POST /api/v1/sync` não significa conclusão.
+
+A Visão geral reúne recuperação, esforço, sono, consistência, déficit de sono, VFC, frequência de repouso, passos e calorias do último registro. Passos preservam ausência como `null` e abrangem o ciclo fisiológico, não necessariamente o dia civil. Os totais de força e zonas cardíacas usam treinos iniciados nos sete dias até o fim da seleção; zonas são restritas aos treinos, sem equivalência com o monitoramento diário completo do aplicativo. Monitor de estresse e VO₂ Max não são expostos pela API oficial consultada em 08/10/2026.
+
+### Conexão complementar de estresse
+
+Abra `http://localhost:3032/stress` e entre na mesma conta WHOOP do painel. O login aceita verificação por SMS, e-mail ou autenticador. A conexão usa a interface privada documentada pelo [Totem](https://github.com/thebriangao/totem), separada do OAuth oficial. Não instala nem habilita as ferramentas de escrita daquele MCP. As únicas consultas são a identificação da conta (`/users-service/v2/bootstrap`) e o estresse por dia (`/health-service/v2/stress-bff/{date}`); as chamadas de autenticação usam o proxy Cognito da WHOOP.
+
+A senha não é persistida. Sessão e leituras ficam em `data/stress.enc`, criptografadas com AES-256-GCM e uma chave derivada de `WHOOP_STATS_ENCRYPTION_KEY`. `WHOOP_STRESS_STORE` permite configurar outro caminho absoluto no servidor. Preserve essa chave ao reiniciar. O arquivo não é servido ao navegador nem incluído no Git. O login é permitido somente pelo endereço local do painel. A integração renova a sessão quando possível; se a renovação expirar, solicita novo login. Desconectar remove a sessão local e preserva as leituras já consultadas; não revoga sessões do aplicativo WHOOP.
+
+As consultas são feitas ao abrir ou atualizar a tela, com cache de um minuto por dia e espera de cinco minutos após HTTP 429. Falhas conservam a última consulta com aviso de desatualização. O gráfico usa a sequência completa (`extended24_hour_graph`), preserva a ordem temporal e separa as datas nas viradas de meia-noite antes de filtrar o dia civil. Para janelas históricas encerradas, confirma a data final com os horários dos ciclos já sincronizados pela API oficial; sem essa confirmação, não atribui datas por suposição. O dia atual termina no horário da consulta, sem pontos no futuro. Leituras, mínimo e pico pertencem somente ao dia selecionado. O cache anterior à correção temporal é ignorado e substituído na próxima consulta bem-sucedida, preservando a sessão.
+
+Os horários são solicitados em `America/Sao_Paulo`. O gráfico não estima períodos ausentes e separa lacunas acima de dez minutos. Não há coleta em segundo plano nem substituição do estresse por VFC ou esforço.
+
+Interface sem suporte oficial: pode mudar ou ser bloqueada; o autor do Totem alerta para incompatibilidade com os termos da WHOOP. A autenticação real e a correspondência das métricas devem ser conferidas na conta do usuário. Testes automatizados usam respostas sintéticas, sem credenciais ou métricas pessoais.
+
+As quatro listagens exigem `start/end` e retornam `{ records, next_cursor }`. O cursor opaco combina horário e identificador. Os filtros SQL incluem sobreposição de intervalos com início inclusivo e fim exclusivo. O cliente WHOOP mantém autenticação/retries; os modelos de entrada locais preservam campos numéricos ausentes que o modelo original da biblioteca convertia em zero.
+
+Após alterar contratos, regenere nesta ordem: `sqlc generate`; `go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g cmd/server/main.go --parseDependency --parseInternal`; `node scripts/generate-openapi.mjs`; `node web/node_modules/openapi-typescript/bin/cli.js docs/openapi.json -o web/src/lib/api/schema.d.ts`. Não edite os arquivos gerados diretamente.
+
+## Validação
+
+Frontend com Node 22: `npm test`, `npm run lint` e `npm run build`, no diretório `web`, uma tarefa pesada por vez. Para integração Go, use **exclusivamente um PostgreSQL de testes** com as três migrações e defina `WHOOP_TEST_DATABASE_URL`; execute `go test -p 1 -count=1 ./internal/...`. Não aponte essa variável ao banco pessoal. Os testes de storage criam e removem seus próprios schemas; os de período usam rollback e os de sincronização removem apenas seus registros sintéticos.
+
+Ao gerar os executáveis locais, pare esta instalação pelo iniciador, compile `go build -p 1 -o bin/whoop-stats.exe ./cmd/server`, gere o frontend e inicie novamente. A aceitação visual deve percorrer as cinco telas em desktop e celular, testar teclado/modais e conferir os intervalos contra os registros, mantendo capturas fora do Git.
+
+---
+
+A documentação original do upstream abaixo descreve também alternativas de implantação que não são necessárias para a instalação Windows.
+
 # WHOOP em Português
 
 Fork pessoal de [arvarik/whoop-stats](https://github.com/arvarik/whoop-stats), com interface em português brasileiro e execução local no Windows.
@@ -7,6 +55,9 @@ Fork pessoal de [arvarik/whoop-stats](https://github.com/arvarik/whoop-stats), c
 - Abra **Iniciar WHOOP.cmd**, ou o atalho **WHOOP em Português** na área de trabalho. O inicializador abre o banco exclusivo deste painel, o servidor e a interface em segundo plano.
 - Acesse **http://localhost:3032**. As páginas mostram visão geral, recuperação, sono, esforço e treinos. O idioma permanece em português; datas usam o fuso de São Paulo e números usam vírgula decimal.
 - Use **Sincronizar** para solicitar uma atualização. A primeira importação de um histórico longo pode levar alguns minutos.
+- Use **Data inicial**, **Data final** e **Aplicar período**, ou os atalhos Hoje, Ontem, 7 dias e 30 dias. O filtro permanece ao mudar de tela. Cada consulta permite até 366 dias.
+- Um único dia mostra os registros por horário; períodos maiores permitem abrir cada dia para detalhar. Ciclos, sono e treinos que atravessam o intervalo selecionado são incluídos, com início e fim completos.
+- O esforço da WHOOP pertence a ciclos fisiológicos, que podem atravessar vários dias. O painel mostra esses intervalos sem dividir artificialmente o esforço ou as calorias por dia. Não há série contínua de frequência cardíaca por hora na integração.
 - Abra **Parar WHOOP.cmd** para encerrar os processos deste painel e seu banco.
 - **Conectar WHOOP.cmd** inicia a autorização quando as credenciais do aplicativo WHOOP estiverem configuradas no arquivo `.env`. Feche o painel antes de renovar a conexão.
 
@@ -374,6 +425,6 @@ whoop-stats/
 
 ---
 
-## License
+## Licença
 
-MIT
+O upstream não apresentou arquivo de licença explícito na auditoria. Não presumir licença MIT; confirmar os termos antes de redistribuir código.

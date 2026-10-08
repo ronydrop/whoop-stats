@@ -58,8 +58,8 @@ ON CONFLICT (id) DO UPDATE SET
 -- ---------------------------------------------------------------------------
 
 -- name: UpsertCycle :exec
-INSERT INTO cycles (id, user_id, start_time, end_time, timezone_offset, strain, kilojoule, average_heart_rate, max_heart_rate, score_state, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+INSERT INTO cycles (id, user_id, start_time, end_time, timezone_offset, strain, kilojoule, average_heart_rate, max_heart_rate, score_state, step_count, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 ON CONFLICT (id, start_time) DO UPDATE SET
     end_time = EXCLUDED.end_time,
     timezone_offset = EXCLUDED.timezone_offset,
@@ -68,13 +68,17 @@ ON CONFLICT (id, start_time) DO UPDATE SET
     average_heart_rate = EXCLUDED.average_heart_rate,
     max_heart_rate = EXCLUDED.max_heart_rate,
     score_state = EXCLUDED.score_state,
+    step_count = EXCLUDED.step_count,
     updated_at = NOW();
 
 -- name: GetCycles :many
 SELECT * FROM cycles
-WHERE user_id = $1 AND start_time < $2
-ORDER BY start_time DESC
-LIMIT $3;
+WHERE user_id = sqlc.arg(user_id)
+AND start_time < sqlc.arg(period_end)::timestamptz
+AND (end_time IS NULL OR end_time > sqlc.arg(period_start)::timestamptz)
+AND (start_time < sqlc.arg(cursor_time)::timestamptz OR (start_time = sqlc.arg(cursor_time)::timestamptz AND id::text < sqlc.arg(cursor_id)::text))
+ORDER BY start_time DESC, id::text DESC
+LIMIT sqlc.arg(page_limit);
 
 -- ---------------------------------------------------------------------------
 -- Recoveries (daily recovery with HRV, RHR, SpO2, skin temp)
@@ -96,10 +100,16 @@ ON CONFLICT (id, start_time) DO UPDATE SET
     updated_at = NOW();
 
 -- name: GetRecoveries :many
-SELECT * FROM recoveries
-WHERE user_id = $1 AND start_time < $2
-ORDER BY start_time DESC
-LIMIT $3;
+SELECT r.*, r.start_time AS recorded_at, s.end_time AS reference_time, c.start_time AS cycle_start, c.end_time AS cycle_end
+FROM recoveries r
+LEFT JOIN sleeps s ON s.id = r.sleep_id AND s.user_id = r.user_id
+LEFT JOIN cycles c ON c.id = r.id AND c.user_id = r.user_id
+WHERE r.user_id = sqlc.arg(user_id)
+AND ((COALESCE(s.end_time, r.start_time) >= sqlc.arg(period_start)::timestamptz AND COALESCE(s.end_time, r.start_time) < sqlc.arg(period_end)::timestamptz)
+ OR (c.start_time < sqlc.arg(period_end)::timestamptz AND (c.end_time IS NULL OR c.end_time > sqlc.arg(period_start)::timestamptz)))
+AND (r.start_time < sqlc.arg(cursor_time)::timestamptz OR (r.start_time = sqlc.arg(cursor_time)::timestamptz AND r.id::text < sqlc.arg(cursor_id)::text))
+ORDER BY r.start_time DESC, r.id::text DESC
+LIMIT sqlc.arg(page_limit);
 
 -- ---------------------------------------------------------------------------
 -- Sleeps (sessions with stage breakdowns and sleep need)
@@ -134,9 +144,12 @@ ON CONFLICT (id, start_time) DO UPDATE SET
 
 -- name: GetSleeps :many
 SELECT * FROM sleeps
-WHERE user_id = $1 AND start_time < $2
-ORDER BY start_time DESC
-LIMIT $3;
+WHERE user_id = sqlc.arg(user_id)
+AND end_time >= sqlc.arg(period_start)::timestamptz
+AND end_time < sqlc.arg(period_end)::timestamptz
+AND (start_time < sqlc.arg(cursor_time)::timestamptz OR (start_time = sqlc.arg(cursor_time)::timestamptz AND id::text < sqlc.arg(cursor_id)::text))
+ORDER BY start_time DESC, id::text DESC
+LIMIT sqlc.arg(page_limit);
 
 -- ---------------------------------------------------------------------------
 -- Workouts (sessions with HR zones, GPS data, sport classification)
@@ -169,9 +182,12 @@ ON CONFLICT (id, start_time) DO UPDATE SET
 
 -- name: GetWorkouts :many
 SELECT * FROM workouts
-WHERE user_id = $1 AND start_time < $2
-ORDER BY start_time DESC
-LIMIT $3;
+WHERE user_id = sqlc.arg(user_id)
+AND start_time < sqlc.arg(period_end)::timestamptz
+AND (end_time IS NULL OR end_time > sqlc.arg(period_start)::timestamptz)
+AND (start_time < sqlc.arg(cursor_time)::timestamptz OR (start_time = sqlc.arg(cursor_time)::timestamptz AND id::text < sqlc.arg(cursor_id)::text))
+ORDER BY start_time DESC, id::text DESC
+LIMIT sqlc.arg(page_limit);
 
 -- ---------------------------------------------------------------------------
 -- Webhook Events
@@ -199,20 +215,33 @@ WHERE id = $1;
 
 -- name: GetDailyStrain :many
 SELECT * FROM daily_strain
-WHERE user_id = $1 AND bucket >= $2
+WHERE user_id = $1 AND bucket >= sqlc.arg(since)::timestamptz
 ORDER BY bucket ASC;
 
 -- name: GetDailyRecovery :many
 SELECT * FROM daily_recovery
-WHERE user_id = $1 AND bucket >= $2
+WHERE user_id = $1 AND bucket >= sqlc.arg(since)::timestamptz
 ORDER BY bucket ASC;
 
 -- name: GetDailySleep :many
 SELECT * FROM daily_sleep
-WHERE user_id = $1 AND bucket >= $2
+WHERE user_id = $1 AND bucket >= sqlc.arg(since)::timestamptz
 ORDER BY bucket ASC;
 
 -- name: UpdateWebhookEventStatuses :exec
 UPDATE webhook_events
 SET status = @status, processed_at = NOW()
 WHERE id = ANY(@event_ids::uuid[]);
+
+-- name: SetSyncStatus :exec
+INSERT INTO sync_status (user_id, resource, state, started_at, finished_at, last_success_at, error_message)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (user_id, resource) DO UPDATE SET
+ state = EXCLUDED.state, started_at = EXCLUDED.started_at, finished_at = EXCLUDED.finished_at,
+ last_success_at = COALESCE(EXCLUDED.last_success_at, sync_status.last_success_at), error_message = EXCLUDED.error_message;
+
+-- name: GetSyncStatus :many
+SELECT * FROM sync_status WHERE user_id = $1 ORDER BY resource;
+
+-- name: InterruptSyncStatus :exec
+UPDATE sync_status SET state = 'interrupted', finished_at = NOW(), error_message = 'Atualização interrompida; tente novamente.' WHERE state = 'running';

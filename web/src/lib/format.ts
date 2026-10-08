@@ -8,7 +8,7 @@ export function formatNumber(value: number, digits = 0): string {
 }
 
 export function formatDuration(ms: number): string {
-  if (!ms || ms <= 0) return "--";
+  if (!Number.isFinite(ms) || ms < 0) return "—";
   const hours = Math.floor(ms / (1000 * 60 * 60));
   const mins = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
   if (hours === 0) return `${mins}m`;
@@ -27,33 +27,37 @@ export function formatFullDate(dateStr: string): string {
 
 /** Format a timestamp to "h:mm a" like "7:30 AM" */
 export function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "numeric", minute: "2-digit" });
+  return new Date(dateStr).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+export function formatRecordInterval(start: string, end?: string | null): string {
+  return `${formatFullDate(start)} às ${formatTime(start)} → ${end ? `${formatFullDate(end)} às ${formatTime(end)}` : "em andamento"}`;
+}
+
+export function formatCycleLabel(start: string, end?: string | null): string {
+  return `${formatShortDate(start)} → ${end ? formatShortDate(end) : "atual"}`;
 }
 
 /** Get recovery color class based on score (green/yellow/red) */
 export function getRecoveryColor(score: number): "green" | "yellow" | "red" {
-  if (score >= 66) return "green";
+  if (score >= 67) return "green";
   if (score >= 34) return "yellow";
   return "red";
 }
 
 /** Get recovery CSS color value */
 export function getRecoveryColorValue(score: number): string {
-  if (score >= 66) return "var(--color-recovery-green)";
-  if (score >= 34) return "var(--color-recovery-yellow)";
-  return "var(--color-recovery-red)";
+  return `var(--color-recovery-${getRecoveryColor(score)})`;
 }
 
 /** Get recovery text */
 export function getRecoveryLabel(score: number): string {
-  if (score >= 66) return "Pronto para atividades";
-  if (score >= 34) return "Disposição moderada";
-  return "Pegue leve";
+  return { green: "Recuperação alta", yellow: "Recuperação moderada", red: "Recuperação baixa" }[getRecoveryColor(score)];
 }
 
 /** Format distance in meters to km or mi */
 export function formatDistance(meters: number): string {
-  if (!meters || meters <= 0) return "--";
+  if (!Number.isFinite(meters) || meters < 0) return "—";
   const km = meters / 1000;
   if (km >= 1) return `${km.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`;
   return `${Math.round(meters)} m`;
@@ -61,14 +65,14 @@ export function formatDistance(meters: number): string {
 
 /** Convert kilojoules (from WHOOP API) to Calories (kcal) and format */
 export function formatCalories(kj: number): string {
-  if (!kj) return "--";
-  const cal = Math.round(kj * 0.239006);
-  return `${cal.toLocaleString("pt-BR")} Cal`;
+  if (!Number.isFinite(kj)) return "—";
+  const cal = Math.round(kj / 4.184);
+  return `${cal.toLocaleString("pt-BR")} kcal`;
 }
 
 /** Get raw calorie number from kJ */
 export function kjToCal(kj: number): number {
-  return Math.round(kj * 0.239006);
+  return kj / 4.184;
 }
 
 /** HR zone colors */

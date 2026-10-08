@@ -1,17 +1,22 @@
 "use client";
 
+import { dateKey } from "@/lib/period";
+import { formatFullDate } from "@/lib/format";
 import { sportLabel } from "@/lib/sports";
 
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { WorkoutCard } from "@/components/workout-card";
 import { WorkoutDetail } from "@/components/workout-detail";
+import { MetricCard } from "@/components/metric-card";
+import { MetricHistory } from "@/components/metric-visual";
+import { metric } from "@/lib/metrics";
+import { formatRecordInterval } from "@/lib/format";
 import { Dumbbell, SlidersHorizontal, X, Flame, Clock, ChevronUp, ChevronDown, Timer } from "lucide-react";
 import { formatNumber, formatDuration, kjToCal } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRecord = Record<string, any>;
+import type { Workout } from "@/lib/types";
 
 const SPORT_ICONS: Record<string, { emoji: string; color: string }> = {
   running: { emoji: "🏃", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
@@ -32,7 +37,7 @@ function getEffortLevel(strain: number): "easy" | "moderate" | "hard" | "max" {
   return "easy";
 }
 
-function getWorkoutDurationMs(w: AnyRecord): number {
+function getWorkoutDurationMs(w: Workout): number {
   if (!w.end_time) return 0;
   return new Date(w.end_time).getTime() - new Date(w.start_time).getTime();
 }
@@ -54,7 +59,7 @@ const DURATION_FILTERS = [
 type SortKey = "date" | "strain" | "duration" | "calories";
 
 interface WorkoutFeedProps {
-  workouts: AnyRecord[];
+  workouts: Workout[];
 }
 
 export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
@@ -63,7 +68,7 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
   const [durationFilter, setDurationFilter] = useState<string>("any");
   const [sortBy, setSortBy] = useState<SortKey>("date");
   const [sortAsc, setSortAsc] = useState(false); // false = descending (default)
-  const [detailWorkout, setDetailWorkout] = useState<AnyRecord | null>(null);
+  const [detailWorkout, setDetailWorkout] = useState<Workout | null>(null);
 
   const sportTypes = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -85,12 +90,13 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
 
     if (selectedEffort.size > 0) {
       result = result.filter((w) =>
-        selectedEffort.has(getEffortLevel(Number(w.strain || 0)))
+        w.strain != null && selectedEffort.has(getEffortLevel(w.strain))
       );
     }
 
     if (durationFilter !== "any") {
       result = result.filter((w) => {
+        if (!w.end_time) return false;
         const dMin = getWorkoutDurationMs(w) / (1000 * 60);
         if (durationFilter === "short") return dMin < 20;
         if (durationFilter === "medium") return dMin >= 20 && dMin < 45;
@@ -101,12 +107,11 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
 
     const dir = sortAsc ? 1 : -1;
     result.sort((a, b) => {
-      let cmp = 0;
-      if (sortBy === "strain") cmp = (Number(a.strain) || 0) - (Number(b.strain) || 0);
-      else if (sortBy === "calories") cmp = (Number(a.kilojoule) || 0) - (Number(b.kilojoule) || 0);
-      else if (sortBy === "duration") cmp = getWorkoutDurationMs(a) - getWorkoutDurationMs(b);
-      else cmp = new Date(a.start_time).getTime() - new Date(b.start_time).getTime();
-      return cmp * dir;
+      const value = (w: Workout): number | null => sortBy === "strain" ? w.strain : sortBy === "calories" ? w.kilojoule : sortBy === "duration" ? (w.end_time ? getWorkoutDurationMs(w) : null) : Date.parse(w.start_time);
+      const av = value(a), bv = value(b);
+      if (av == null) return bv == null ? 0 : 1;
+      if (bv == null) return -1;
+      return (av - bv) * dir;
     });
 
     return result;
@@ -140,12 +145,53 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
   };
 
   const hasFilters = selectedSports.size > 0 || selectedEffort.size > 0 || durationFilter !== "any";
-  const totalStrain = filtered.reduce((acc, w) => acc + (Number(w.strain) || 0), 0);
+  const strains = filtered.flatMap(w => w.strain == null ? [] : [w.strain]);
+  const averageStrain = strains.length ? strains.reduce((a, b) => a + b, 0) / strains.length : null;
   const totalCal = filtered.reduce((acc, w) => acc + kjToCal(Number(w.kilojoule || 0)), 0);
   const totalDurationMs = filtered.reduce((acc, w) => acc + getWorkoutDurationMs(w), 0);
+  const chronological = [...filtered].sort((a, b) => Date.parse(a.start_time) - Date.parse(b.start_time));
+  const points = (field: "strain" | "kilojoule" | "duration") => chronological.map(w => {
+    const value = field === "duration" ? (w.end_time ? getWorkoutDurationMs(w) / 60000 : null) : metric(w, field);
+    return { date: w.start_time, label: formatRecordInterval(w.start_time, w.end_time), value: value == null || value < 0 ? null : field === "kilojoule" ? kjToCal(value) : value };
+  });
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <MetricCard title="Esforço médio por treino" value={averageStrain == null ? "—" : formatNumber(averageStrain, 1)} subtitle={`${strains.length}/${filtered.length} treinos com esforço disponível`} accentColor="blue" visual={<MetricHistory points={points("strain")} label="Esforço por treino" max={21} reference={averageStrain} />} />
+        <MetricCard title="Tempo em atividades" value={filtered.some(w => w.end_time) ? formatDuration(totalDurationMs) : "—"} subtitle="Duração conhecida dos treinos filtrados" accentColor="violet" visual={<MetricHistory points={points("duration")} label="Duração por treino" unit=" min" />} />
+        <MetricCard title="Calorias dos treinos" value={filtered.some(w => w.kilojoule != null) ? `${formatNumber(totalCal)} kcal` : "—"} subtitle="Já incluídas nas calorias dos ciclos" visual={<MetricHistory points={points("kilojoule")} label="Energia por treino" unit=" kcal" />} />
+      </div>
+      {/* Summary with total duration */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs text-text-tertiary flex-wrap">
+          <span className="font-medium text-text-secondary">{filtered.length}</span>
+          <span>{filtered.length === 1 ? "treino" : "treinos"}</span>
+          <span className="text-text-muted">·</span>
+          <span className="flex items-center gap-1"><Flame className="w-3 h-3" /> {averageStrain == null ? "Não disponível" : formatNumber(averageStrain, 1)} de esforço médio por treino</span>
+          <span className="text-text-muted">·</span>
+          <span>{filtered.some(w => w.kilojoule != null) ? formatNumber(totalCal) + " kcal disponíveis dos treinos" : "Energia não disponível"}</span>
+          <span className="text-text-muted">·</span>
+          <span className="flex items-center gap-1"><Timer className="w-3 h-3" /> {filtered.some(w => w.end_time) ? formatDuration(totalDurationMs) + " com duração conhecida" : "Duração não disponível"}</span>
+        </div>
+        {hasFilters && (
+          <button
+            onClick={() => {
+              setSelectedSports(new Set());
+              setSelectedEffort(new Set());
+              setDurationFilter("any");
+            }}
+            className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-secondary transition-colors"
+          >
+            <X className="w-3 h-3" />
+            Limpar filtros
+          </button>
+        )}
+      </div>
+
+      <details className="glass-card p-3" open={hasFilters ? true : undefined}>
+        <summary className="cursor-pointer text-sm font-medium">Filtrar e ordenar treinos{hasFilters ? " · Filtros ativos" : ""}</summary>
+        <div className="mt-4 space-y-4">
       {/* Sport type icons */}
       <div className="glass-card p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -250,55 +296,35 @@ export function WorkoutFeed({ workouts }: WorkoutFeedProps) {
         </div>
       </div>
 
-      {/* Summary with total duration */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs text-text-tertiary flex-wrap">
-          <span className="font-medium text-text-secondary">{filtered.length}</span>
-          <span>treinos</span>
-          <span className="text-text-muted">·</span>
-          <span className="flex items-center gap-1"><Flame className="w-3 h-3" /> {formatNumber(totalStrain, 1)} de esforço</span>
-          <span className="text-text-muted">·</span>
-          <span>{totalCal.toLocaleString("pt-BR")} Cal</span>
-          <span className="text-text-muted">·</span>
-          <span className="flex items-center gap-1"><Timer className="w-3 h-3" /> {formatDuration(totalDurationMs)}</span>
         </div>
-        {hasFilters && (
-          <button
-            onClick={() => {
-              setSelectedSports(new Set());
-              setSelectedEffort(new Set());
-              setDurationFilter("any");
-            }}
-            className="flex items-center gap-1 text-[11px] text-text-muted hover:text-text-secondary transition-colors"
-          >
-            <X className="w-3 h-3" />
-            Limpar filtros
-          </button>
-        )}
-      </div>
+      </details>
 
       {/* Workout grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {filtered.map((w, i) => (
-          <div key={i} onClick={() => setDetailWorkout(w)} className="cursor-pointer">
+          <Fragment key={w.id}>
+          {sortBy === "date" && (i === 0 || dateKey(filtered[i-1].start_time) !== dateKey(w.start_time)) && <h3 className="col-span-full text-sm font-medium mt-3">{formatFullDate(w.start_time)}</h3>}
+          <div role="button" tabIndex={0} onKeyDown={e => { if(e.key === "Enter" || e.key === " "){e.preventDefault();setDetailWorkout(w);} }} onClick={() => setDetailWorkout(w)} className="cursor-pointer rounded-2xl focus-visible:outline-2 focus-visible:outline-accent">
             <WorkoutCard
               sportName={sportLabel(w.sport_name || "Atividade")}
-              strain={Number(w.strain || 0)}
-              kilojoule={Number(w.kilojoule || 0)}
+              strain={w.strain}
+              kilojoule={w.kilojoule}
               startTime={w.start_time}
               endTime={w.end_time}
-              averageHeartRate={w.average_heart_rate ? Number(w.average_heart_rate) : undefined}
-              maxHeartRate={w.max_heart_rate ? Number(w.max_heart_rate) : undefined}
+              averageHeartRate={w.average_heart_rate ?? undefined}
+              maxHeartRate={w.max_heart_rate ?? undefined}
               zones={[
-                Number(w.zone_zero_milli || 0),
-                Number(w.zone_one_milli || 0),
-                Number(w.zone_two_milli || 0),
-                Number(w.zone_three_milli || 0),
-                Number(w.zone_four_milli || 0),
-                Number(w.zone_five_milli || 0),
+                w.zone_zero_milli,
+                w.zone_one_milli,
+                w.zone_two_milli,
+                w.zone_three_milli,
+                w.zone_four_milli,
+                w.zone_five_milli,
               ]}
             />
+            <span className="mt-2 block text-xs font-medium text-accent-hover">Ver detalhes do treino</span>
           </div>
+          </Fragment>
         ))}
       </div>
 

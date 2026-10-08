@@ -31,26 +31,27 @@ type Cycle struct {
 	ScoreState       pgtype.Text        `json:"score_state"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	StepCount        pgtype.Int4        `json:"step_count"`
 }
 
 type DailyRecovery struct {
-	UserID      pgtype.UUID `json:"user_id"`
-	Bucket      interface{} `json:"bucket"`
-	AvgRecovery float64     `json:"avg_recovery"`
+	UserID      pgtype.UUID     `json:"user_id"`
+	Bucket      pgtype.Interval `json:"bucket"`
+	AvgRecovery float64         `json:"avg_recovery"`
 }
 
 type DailySleep struct {
-	UserID         pgtype.UUID `json:"user_id"`
-	Bucket         interface{} `json:"bucket"`
-	AvgPerformance float64     `json:"avg_performance"`
-	AvgEfficiency  float64     `json:"avg_efficiency"`
+	UserID         pgtype.UUID     `json:"user_id"`
+	Bucket         pgtype.Interval `json:"bucket"`
+	AvgPerformance float64         `json:"avg_performance"`
+	AvgEfficiency  float64         `json:"avg_efficiency"`
 }
 
 type DailyStrain struct {
-	UserID    pgtype.UUID `json:"user_id"`
-	Bucket    interface{} `json:"bucket"`
-	AvgStrain float64     `json:"avg_strain"`
-	MaxStrain interface{} `json:"max_strain"`
+	UserID    pgtype.UUID     `json:"user_id"`
+	Bucket    pgtype.Interval `json:"bucket"`
+	AvgStrain float64         `json:"avg_strain"`
+	MaxStrain interface{}     `json:"max_strain"`
 }
 
 // Daily recovery scores with HRV, RHR, SpO2, and skin temperature
@@ -101,6 +102,16 @@ type Sleep struct {
 	UpdatedAt                   pgtype.Timestamptz `json:"updated_at"`
 }
 
+type SyncStatus struct {
+	UserID        pgtype.UUID        `json:"user_id"`
+	Resource      string             `json:"resource"`
+	State         string             `json:"state"`
+	StartedAt     pgtype.Timestamptz `json:"started_at"`
+	FinishedAt    pgtype.Timestamptz `json:"finished_at"`
+	LastSuccessAt pgtype.Timestamptz `json:"last_success_at"`
+	ErrorMessage  pgtype.Text        `json:"error_message"`
+}
+
 // Core user accounts with AES-256-GCM encrypted OAuth2 tokens
 type User struct {
 	ID                    pgtype.UUID        `json:"id"`
@@ -133,16 +144,16 @@ type WebhookEvent struct {
 }
 
 type WeeklyRecovery struct {
-	UserID      pgtype.UUID `json:"user_id"`
-	Bucket      interface{} `json:"bucket"`
-	AvgRecovery float64     `json:"avg_recovery"`
+	UserID      pgtype.UUID     `json:"user_id"`
+	Bucket      pgtype.Interval `json:"bucket"`
+	AvgRecovery float64         `json:"avg_recovery"`
 }
 
 type WeeklyStrain struct {
-	UserID    pgtype.UUID `json:"user_id"`
-	Bucket    interface{} `json:"bucket"`
-	AvgStrain float64     `json:"avg_strain"`
-	MaxStrain interface{} `json:"max_strain"`
+	UserID    pgtype.UUID     `json:"user_id"`
+	Bucket    pgtype.Interval `json:"bucket"`
+	AvgStrain float64         `json:"avg_strain"`
+	MaxStrain interface{}     `json:"max_strain"`
 }
 
 // Workout sessions with HR zones, GPS data, and sport classification

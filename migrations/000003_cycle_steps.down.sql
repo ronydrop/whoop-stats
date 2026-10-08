@@ -1,0 +1,1 @@
+ALTER TABLE cycles DROP COLUMN IF EXISTS step_count;

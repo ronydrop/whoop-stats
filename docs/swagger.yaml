@@ -13,33 +13,86 @@ definitions:
         type: number
       max_heart_rate:
         type: integer
+      score_state:
+        type: string
       start_time:
         type: string
+      step_count:
+        type: integer
       strain:
         type: number
       timezone_offset:
-        type: string
+        type: object
       updated_at:
         type: string
       user_id:
         type: string
     type: object
-  github_com_arvind_whoop-stats_internal_db.Sleep:
+  github_com_arvind_whoop-stats_internal_db.GetRecoveriesRow:
     properties:
       created_at:
         type: string
+      cycle_end:
+        type: string
+      cycle_start:
+        type: string
+      hrv_rmssd_milli:
+        type: number
+      id:
+        type: integer
+      recorded_at:
+        type: string
+      recovery_score:
+        type: number
+      reference_time:
+        type: string
+      resting_heart_rate:
+        type: number
+      score_state:
+        type: string
+      skin_temp_celsius:
+        type: number
+      sleep_id:
+        type: string
+      spo2_percentage:
+        type: number
+      start_time:
+        type: string
+      timezone_offset:
+        type: object
+      updated_at:
+        type: string
+      user_calibrating:
+        type: boolean
+      user_id:
+        type: string
+    type: object
+  github_com_arvind_whoop-stats_internal_db.Sleep:
+    properties:
+      baseline_milli:
+        type: integer
+      created_at:
+        type: string
+      cycle_id:
+        type: integer
       disturbance_count:
         type: integer
       end_time:
         type: string
       id:
-        type: integer
+        type: string
       nap:
         type: boolean
+      need_from_recent_nap_milli:
+        type: integer
+      need_from_recent_strain_milli:
+        type: integer
       performance_score:
         type: number
       respiratory_rate:
         type: number
+      score_state:
+        type: string
       sleep_consistency_percentage:
         type: number
       sleep_cycle_count:
@@ -51,7 +104,7 @@ definitions:
       start_time:
         type: string
       timezone_offset:
-        type: string
+        type: object
       total_awake_time_milli:
         type: integer
       total_in_bed_time_milli:
@@ -65,6 +118,23 @@ definitions:
       total_slow_wave_sleep_time_milli:
         type: integer
       updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
+  github_com_arvind_whoop-stats_internal_db.SyncStatus:
+    properties:
+      error_message:
+        type: string
+      finished_at:
+        type: string
+      last_success_at:
+        type: string
+      resource:
+        type: string
+      started_at:
+        type: string
+      state:
         type: string
       user_id:
         type: string
@@ -84,21 +154,25 @@ definitions:
       end_time:
         type: string
       id:
-        type: integer
+        type: string
       kilojoule:
         type: number
       max_heart_rate:
         type: integer
       percent_recorded:
         type: number
+      score_state:
+        type: string
       sport_id:
         type: integer
+      sport_name:
+        type: string
       start_time:
         type: string
       strain:
         type: number
       timezone_offset:
-        type: string
+        type: object
       updated_at:
         type: string
       user_id:
@@ -116,6 +190,15 @@ definitions:
       zone_zero_milli:
         type: integer
     type: object
+  internal_api.CyclesPage:
+    properties:
+      next_cursor:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/github_com_arvind_whoop-stats_internal_db.Cycle'
+        type: array
+    type: object
   internal_api.ErrorResponse:
     properties:
       error:
@@ -126,11 +209,44 @@ definitions:
             type: string
         type: object
     type: object
+  internal_api.RecoveriesPage:
+    properties:
+      next_cursor:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/github_com_arvind_whoop-stats_internal_db.GetRecoveriesRow'
+        type: array
+    type: object
+  internal_api.SleepsPage:
+    properties:
+      next_cursor:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/github_com_arvind_whoop-stats_internal_db.Sleep'
+        type: array
+    type: object
+  internal_api.SyncStatusResponse:
+    properties:
+      resources:
+        items:
+          $ref: '#/definitions/github_com_arvind_whoop-stats_internal_db.SyncStatus'
+        type: array
+      running:
+        type: boolean
+    type: object
+  internal_api.WorkoutsPage:
+    properties:
+      next_cursor:
+        type: string
+      records:
+        items:
+          $ref: '#/definitions/github_com_arvind_whoop-stats_internal_db.Workout'
+        type: array
+    type: object
 info:
   contact: {}
-  description: High-performance RESTful API for WHOOP data.
-  title: WHOOP Stats API
-  version: "1.0"
 paths:
   /api/v1/cycles:
     get:
@@ -138,19 +254,31 @@ paths:
       - application/json
       description: Fetches cycles using cursor-based pagination
       parameters:
-      - description: Cursor timestamp (RFC3339)
+      - description: Data inicial em Brasília (AAAA-MM-DD)
+        in: query
+        name: start
+        required: true
+        type: string
+      - description: Data final inclusiva em Brasília (AAAA-MM-DD)
+        in: query
+        name: end
+        required: true
+        type: string
+      - description: Cursor opaco da página anterior
         in: query
         name: cursor
         type: string
+      - description: Number of records (default 50, max 200)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/github_com_arvind_whoop-stats_internal_db.Cycle'
-            type: array
+            $ref: '#/definitions/internal_api.CyclesPage'
         "400":
           description: Bad Request
           schema:
@@ -187,25 +315,81 @@ paths:
       summary: Get insights
       tags:
       - insights
-  /api/v1/sleeps:
+  /api/v1/recoveries:
     get:
       consumes:
       - application/json
-      description: Fetches sleeps using cursor-based pagination
+      description: Fetches recoveries using cursor-based pagination
       parameters:
-      - description: Cursor timestamp (RFC3339)
+      - description: Data inicial em Brasília (AAAA-MM-DD)
+        in: query
+        name: start
+        required: true
+        type: string
+      - description: Data final inclusiva em Brasília (AAAA-MM-DD)
+        in: query
+        name: end
+        required: true
+        type: string
+      - description: Cursor opaco da página anterior
         in: query
         name: cursor
         type: string
+      - description: Number of records (default 50, max 200)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/github_com_arvind_whoop-stats_internal_db.Sleep'
-            type: array
+            $ref: '#/definitions/internal_api.RecoveriesPage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get recoveries
+      tags:
+      - recoveries
+  /api/v1/sleeps:
+    get:
+      consumes:
+      - application/json
+      description: Fetches sleeps using cursor-based pagination
+      parameters:
+      - description: Data inicial em Brasília (AAAA-MM-DD)
+        in: query
+        name: start
+        required: true
+        type: string
+      - description: Data final inclusiva em Brasília (AAAA-MM-DD)
+        in: query
+        name: end
+        required: true
+        type: string
+      - description: Cursor opaco da página anterior
+        in: query
+        name: cursor
+        type: string
+      - description: Number of records (default 50, max 200)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_api.SleepsPage'
         "400":
           description: Bad Request
           schema:
@@ -223,7 +407,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Enqueues a sync job for the user
+      description: Enqueues a background sync job for the authenticated user
       produces:
       - application/json
       responses:
@@ -246,6 +430,22 @@ paths:
       summary: Trigger ad-hoc sync
       tags:
       - sync
+  /api/v1/sync/status:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_api.SyncStatusResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_api.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Consultar o estado persistido da sincronização
   /api/v1/user/profile:
     get:
       consumes:
@@ -278,19 +478,31 @@ paths:
       - application/json
       description: Fetches workouts using cursor-based pagination
       parameters:
-      - description: Cursor timestamp (RFC3339)
+      - description: Data inicial em Brasília (AAAA-MM-DD)
+        in: query
+        name: start
+        required: true
+        type: string
+      - description: Data final inclusiva em Brasília (AAAA-MM-DD)
+        in: query
+        name: end
+        required: true
+        type: string
+      - description: Cursor opaco da página anterior
         in: query
         name: cursor
         type: string
+      - description: Number of records (default 50, max 200)
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/github_com_arvind_whoop-stats_internal_db.Workout'
-            type: array
+            $ref: '#/definitions/internal_api.WorkoutsPage'
         "400":
           description: Bad Request
           schema:
@@ -304,9 +516,4 @@ paths:
       summary: Get workouts
       tags:
       - workouts
-securityDefinitions:
-  BearerAuth:
-    in: header
-    name: Authorization
-    type: apiKey
 swagger: "2.0"

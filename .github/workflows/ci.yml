@@ -9,6 +9,18 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: whoop_test
+          POSTGRES_PASSWORD: test_only
+          POSTGRES_DB: whoop_test
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U whoop_test" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      WHOOP_TEST_DATABASE_URL: postgres://whoop_test:test_only@localhost:5432/whoop_test?sslmode=disable
+      GOMAXPROCS: 2
     steps:
       - uses: actions/checkout@v4
 
@@ -23,11 +35,14 @@ jobs:
       - name: Vet
         run: go vet ./cmd/... ./internal/...
 
-      - name: Unit Tests
+      - name: Preparar banco de testes isolado
         run: |
-          go test -race -count=1 ./internal/crypto/... ./internal/middleware/... ./internal/config/...
-          go test -race -count=1 ./internal/storage/ -run TestParseTimezoneOffset
-          go test -race -count=1 ./internal/poller/ -run TestPoller_Offpeak
+          psql "$WHOOP_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000001_init_schema.up.sql
+          psql "$WHOOP_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000002_sync_status.up.sql
+          psql "$WHOOP_TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f migrations/000003_cycle_steps.up.sql
+
+      - name: Testes unitários e de integração
+        run: go test -p 1 -race -count=1 ./internal/...
 
   frontend:
     runs-on: ubuntu-latest
@@ -40,12 +55,15 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: "./web/package-lock.json"
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
+
+      - name: Testes do frontend
+        run: npm test
 
       - name: Lint
         run: npm run lint
