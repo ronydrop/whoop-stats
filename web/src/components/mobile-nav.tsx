@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, HeartPulse, Moon, Flame, Dumbbell, Activity, NotebookPen, TrendingUp, Radio } from "lucide-react";
+import { LayoutDashboard, HeartPulse, Moon, Flame, Dumbbell, Activity } from "lucide-react";
 
 const tabs = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
@@ -13,9 +13,6 @@ const tabs = [
   { href: "/strain", label: "Esforço", icon: Flame },
   { href: "/stress", label: "Estresse", icon: Activity },
   { href: "/workouts", label: "Treinos", icon: Dumbbell },
-  { href: "/journal", label: "Diário", icon: NotebookPen },
-  { href: "/fitness", label: "Condicionamento", icon: TrendingUp },
-  { href: "/live", label: "Ao vivo", icon: Radio },
 ];
 
 export function MobileNav() {

@@ -22,7 +22,7 @@ Necessidade de sono = base + dívida + esforço + contribuição assinada dos co
 
 As migrações aditivas `000002_sync_status.up.sql` e `000003_cycle_steps.up.sql` são aplicadas pelo iniciador, sem reset. A atualização automática e a manual compartilham a mesma exclusão mútua. `GET /api/v1/sync/status` informa cada recurso, a última persistência bem-sucedida e falhas sanitizadas. O aceite de `POST /api/v1/sync` não significa conclusão.
 
-A Visão geral reúne recuperação, esforço, sono, consistência, déficit de sono, VFC, frequência de repouso, passos e calorias do último registro. Passos preservam ausência como `null` e abrangem o ciclo fisiológico, não necessariamente o dia civil. Os totais de força e zonas cardíacas usam treinos iniciados nos sete dias até o fim da seleção; zonas são restritas aos treinos, sem equivalência com o monitoramento diário completo do aplicativo. Monitor de estresse e VO₂ Max não são expostos pela API oficial consultada em 08/10/2026.
+A Visão geral reúne recuperação, esforço, sono, consistência, déficit de sono, VFC, frequência de repouso, passos e calorias do último registro. Passos preservam ausência como `null` e abrangem o ciclo fisiológico, não necessariamente o dia civil. Os totais de força e zonas cardíacas usam treinos iniciados nos sete dias até o fim da seleção; zonas são restritas aos treinos, sem equivalência com o monitoramento diário completo do aplicativo. Monitor de estresse não é exposto pela API oficial consultada em 08/10/2026.
 
 ### Conexão complementar de estresse
 

@@ -183,7 +183,7 @@ export class StressClient {
 
   readPrivate(path: string, ttl = 60_000): Promise<PrivateView> {
     return this.serial(async () => {
-      const allowed = /^\/(?:journal-service\/v3\/journals\/drafts\/mobile\/\d{4}-\d{2}-\d{2}|behavior-impact-service\/v1\/impact|behavior-impact-service\/v2\/impact\/details\/[a-f0-9-]{36}|progression-service\/v3\/trends\/(?:VO2_MAX|STRESS|STRESS_DURING_SLEEP|STRESS_DURING_NON_STRAIN)|home-service\/v1\/deep-dive\/sleep\/last-night|coaching-service\/v2\/sleepneed|health-tab-bff\/v1\/health-tab|core-details-bff\/v1\/cardio-details|weightlifting-service\/v3\/exercise\/[A-Za-z0-9_-]+\/exercise_history)(?:\?[^#\s]*)?$/;
+      const allowed = /^\/(?:progression-service\/v3\/trends\/(?:STRESS|STRESS_DURING_SLEEP|STRESS_DURING_NON_STRAIN)|home-service\/v1\/deep-dive\/sleep\/last-night|coaching-service\/v2\/sleepneed|core-details-bff\/v1\/cardio-details|weightlifting-service\/v3\/exercise\/[A-Za-z0-9_-]+\/exercise_history)(?:\?[^#\s]*)?$/;
       if (!allowed.test(path)) throw new Error("Consulta complementar não permitida.");
       let store: Store;
       try { store = await this.load(); }

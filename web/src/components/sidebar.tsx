@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, HeartPulse, Moon, Flame, Dumbbell, Activity, ShieldCheck, NotebookPen, TrendingUp, Radio } from "lucide-react";
+import { LayoutDashboard, HeartPulse, Moon, Flame, Dumbbell, Activity, ShieldCheck } from "lucide-react";
 
 const items = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
@@ -10,9 +10,6 @@ const items = [
   { href: "/strain", label: "Esforço", icon: Flame },
   { href: "/stress", label: "Estresse", icon: Activity },
   { href: "/workouts", label: "Treinos", icon: Dumbbell },
-  { href: "/journal", label: "Diário", icon: NotebookPen },
-  { href: "/fitness", label: "Condicionamento", icon: TrendingUp },
-  { href: "/live", label: "Ao vivo", icon: Radio },
 ];
 export function Sidebar() {
   const pathname = usePathname();

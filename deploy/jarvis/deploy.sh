@@ -28,9 +28,6 @@ healthy() {
     -H 'Host: whoop.botjarvis.com.br' -H 'X-Forwarded-Proto: https' \
     http://127.0.0.1:3032/) == 307 ]] || return 1
   [[ $(curl --max-time 5 -s -o /dev/null -w '%{http_code}' \
-    -H 'Host: whoop.botjarvis.com.br' -H 'X-Forwarded-Proto: https' \
-    http://127.0.0.1:3032/api/whoop/live) == 401 ]] || return 1
-  [[ $(curl --max-time 5 -s -o /dev/null -w '%{http_code}' \
     http://127.0.0.1:8085/api/v1/cycles) == 401 ]] || return 1
   curl --max-time 10 -fsS https://whoop.botjarvis.com.br/sign-in >/dev/null
 }

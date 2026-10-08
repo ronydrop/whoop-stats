@@ -8,15 +8,15 @@ import { StressClient } from "./stress-client.ts";
 const fixture = { gauge: { gauge_score_display: "1.2" }, stress_graph: { graph: { plots: [{ plot: { segments: [{ points: [{ position_x: 1, data_scrubber_details: { primary_contextual_display: "11:59", value_display: "1.2" } }] }] } }] } }, stress_state: "RELAXED" };
 const credentials = { AccessToken: "access-synthetic", RefreshToken: "refresh-synthetic", ExpiresIn: 3600 };
 
-test("consultas complementares preservam query, arrays e cache criptografado", async t => {
-  const { client, calls, options } = await setup(t, [{ AuthenticationResult: credentials }, { user: { id: 123 } }, { journal: { tracked_behaviors: [] } }, { month_time_segment: {} }]);
+test("consultas complementares preservam query, respostas e cache criptografado", async t => {
+  const { client, calls, options } = await setup(t, [{ AuthenticationResult: credentials }, { user: { id: 123 } }, { need_breakdown: { total: 3600000 } }, { month_time_segment: {} }]);
   await client.login("user@example.com", "senha-sintética");
-  const journal = await client.readPrivate("/journal-service/v3/journals/drafts/mobile/2026-10-07");
-  assert.equal(journal.connected, true);
-  assert.deepEqual(journal.data, { journal: { tracked_behaviors: [] } });
-  const path = "/progression-service/v3/trends/VO2_MAX?endDate=2026-10-08";
+  const plan = await client.readPrivate("/coaching-service/v2/sleepneed");
+  assert.equal(plan.connected, true);
+  assert.deepEqual(plan.data, { need_breakdown: { total: 3600000 } });
+  const path = "/progression-service/v3/trends/STRESS?endDate=2026-10-08";
   const first = await client.readPrivate(path);
-  assert.ok(calls.at(-1)!.url.endsWith("VO2_MAX?endDate=2026-10-08&apiVersion=7"));
+  assert.ok(calls.at(-1)!.url.endsWith("STRESS?endDate=2026-10-08&apiVersion=7"));
   assert.deepEqual((await new StressClient(options).readPrivate(path)).data, first.data);
   const bytes = await readFile(options.file);
   assert.equal(bytes.includes(Buffer.from("month_time_segment")), false);
@@ -25,32 +25,32 @@ test("consultas complementares preservam query, arrays e cache criptografado", a
 
 test("consultas complementares recusam escrita, hosts externos e caminhos desconhecidos", async t => {
   const { client, calls } = await setup(t, []);
-  for (const path of ["https://example.com", "/auth-service/v3/whoop/", "/journal-service/v2/journals", "/health-tab-bff/v1/health-tab#fragment"]) {
+  for (const path of ["https://example.com", "/auth-service/v3/whoop/", "/journal-service/v2/journals", "/coaching-service/v2/sleepneed#fragment", "/health-tab-bff/v1/health-tab", "/journal-service/v3/journals/drafts/mobile/2026-10-07", "/behavior-impact-service/v1/impact", "/behavior-impact-service/v2/impact/details/11111111-1111-1111-1111-111111111111", "/progression-service/v3/trends/VO2_MAX"]) {
     await assert.rejects(client.readPrivate(path), /não permitida/);
   }
   assert.equal(calls.length, 0);
 });
 
 test("consulta complementar renova a sessão uma vez após rejeição da WHOOP", async t => {
-  const { client, calls } = await setup(t, [{ AuthenticationResult: credentials }, { user: { id: 123 } }, 401, { AuthenticationResult: credentials }, { show_live_hr: false }]);
+  const { client, calls } = await setup(t, [{ AuthenticationResult: credentials }, { user: { id: 123 } }, 401, { AuthenticationResult: credentials }, { need_breakdown: { total: 3600000 } }]);
   await client.login("user@example.com", "senha-sintética");
-  const view = await client.readPrivate("/health-tab-bff/v1/health-tab");
+  const view = await client.readPrivate("/coaching-service/v2/sleepneed");
   assert.equal(view.connected, true);
   assert.equal(view.message, "");
-  assert.deepEqual(view.data, { show_live_hr: false });
+  assert.deepEqual(view.data, { need_breakdown: { total: 3600000 } });
   assert.equal(calls.length, 5);
   assert.match(String(calls[3].init?.body), /REFRESH_TOKEN_AUTH/);
   assert.equal(String(calls[3].init?.body).includes("senha-sintética"), false);
 });
 
 test("falha complementar mantém consulta salva, aplica espera compartilhada e não vaza a resposta", async t => {
-  const { client, advance } = await setup(t, [{ AuthenticationResult: credentials }, { user: { id: 123 } }, { show_live_hr: false }, 429]);
+  const { client, advance } = await setup(t, [{ AuthenticationResult: credentials }, { user: { id: 123 } }, { need_breakdown: { total: 3600000 } }, 429]);
   await client.login("user@example.com", "senha-sintética");
-  await client.readPrivate("/health-tab-bff/v1/health-tab");
+  await client.readPrivate("/coaching-service/v2/sleepneed");
   advance();
-  const view = await client.readPrivate("/health-tab-bff/v1/health-tab");
+  const view = await client.readPrivate("/coaching-service/v2/sleepneed");
   assert.equal(view.stale, true);
-  assert.deepEqual(view.data, { show_live_hr: false });
+  assert.deepEqual(view.data, { need_breakdown: { total: 3600000 } });
   assert.match(view.message, /cinco minutos/);
   assert.equal(view.message.includes("segredo"), false);
   assert.match((await client.read("2026-10-08")).message, /cinco minutos/);

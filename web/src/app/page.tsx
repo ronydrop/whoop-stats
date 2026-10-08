@@ -89,6 +89,6 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     </section>
 
     <section><div className="section-heading"><div><h2>Atividades recentes</h2><p>{workouts.length} treinos iniciados no período selecionado</p></div><Link href={`/workouts?${query}`} className="text-xs text-accent-hover">Ver todos →</Link></div>{workouts.length ? <RecentWorkouts workouts={workouts} /> : <p className="glass-card p-6 text-sm text-text-muted">Nenhum treino registrado neste período.</p>}</section>
-    <p className="text-xs leading-relaxed text-text-muted">Explore também o <a href="/stress" className="underline underline-offset-4">estresse</a>, o <a href="/journal" className="underline underline-offset-4">Diário</a> e o <a href="/fitness" className="underline underline-offset-4">VO₂ Max</a> pela conexão complementar WHOOP.</p>
+    <p className="text-xs leading-relaxed text-text-muted">Explore também o <a href="/stress" className="underline underline-offset-4">estresse</a> pela conexão complementar WHOOP.</p>
   </div>;
 }

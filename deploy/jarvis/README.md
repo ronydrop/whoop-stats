@@ -56,7 +56,7 @@ curl --head https://whoop.botjarvis.com.br
 nginx -t
 ```
 
-Uma visita sem sessão deve abrir a autenticação; consultas à API do frontend devem retornar `401`. Um usuário diferente do titular deve receber acesso negado. A confirmação funcional das métricas exige login do titular no painel.
+Uma visita sem sessão deve abrir a autenticação; consultas à API Go devem retornar `401`. Um usuário diferente do titular deve receber acesso negado. A confirmação funcional das métricas exige login do titular no painel.
 
 Para interromper as atualizações, use `systemctl stop whoop-stats-backend`. Reiniciar os serviços não apaga o banco ou as credenciais. O Certbot renova o certificado do painel; os certificados dos subdomínios de autenticação são administrados pelo Clerk.
 
