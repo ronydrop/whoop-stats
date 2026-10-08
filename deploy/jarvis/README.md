@@ -18,6 +18,8 @@ A validação exige saúde do banco/API, login acessível, redirecionamento de v
 
 ### Configuração no GitHub
 
+Em um fork, abra a aba Actions e confirme a opção de habilitar os workflows. O estado `active` na API e uma execução manual não comprovam que os gatilhos automáticos estão liberados. Valide com uma execução iniciada por push na `main`.
+
 Secrets do repositório:
 
 - `WHOOP_DEPLOY_SSH_KEY`: chave exclusiva do usuário `whoop-deploy`.
