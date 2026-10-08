@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { formatNumber, formatTime, formatFullDate, formatCalories, formatDistance, getRecoveryColor, kjToCal } from "./format.ts";
+import { formatNumber, formatTime, formatFullDate, formatCalories, formatDistance, formatElapsedTime, getRecoveryColor, kjToCal } from "./format.ts";
 import { sportLabel } from "./sports.ts";
 
 test("números e unidades usam o padrão brasileiro", () => {
@@ -22,6 +22,20 @@ test("datas usam o fuso brasileiro mesmo quando o registro chega em UTC", () => 
   assert.equal(formatTime("2026-10-07T01:30:00Z"), "22:30");
   assert.equal(formatTime("2026-10-07T07:53:00Z"), "04:53");
   assert.equal(formatFullDate("2026-10-07T01:30:00Z"), "6 de out. de 2026");
+});
+
+test("tempo acordado mostra horas, minutos e segundos sem reiniciar após 24 horas", () => {
+  assert.equal(formatElapsedTime(0), "00:00:00");
+  assert.equal(formatElapsedTime(3_661_999), "01:01:01");
+  assert.equal(formatElapsedTime(59_999), "00:00:59");
+  assert.equal(formatElapsedTime(60_000), "00:01:00");
+  assert.equal(formatElapsedTime(90_061_000), "25:01:01");
+});
+
+test("tempo acordado não inventa duração para horários futuros ou inválidos", () => {
+  assert.equal(formatElapsedTime(-1), "—");
+  assert.equal(formatElapsedTime(NaN), "—");
+  assert.equal(formatElapsedTime(Infinity), "—");
 });
 
 test("modalidades conhecidas são traduzidas sem alterar identificadores desconhecidos", () => {

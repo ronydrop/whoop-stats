@@ -2,12 +2,13 @@ import Link from "next/link";
 import { Activity, Moon, HeartPulse, Dumbbell, ArrowUpRight, Footprints, Flame } from "lucide-react";
 import { periodRecords } from "@/lib/api/period-records";
 import { client } from "@/lib/api/client";
-import { resolvePeriod, periodQuery, addDays, type SearchParams } from "@/lib/period";
+import { resolvePeriod, periodQuery, addDays, dateKey, type SearchParams } from "@/lib/period";
 import { metric, sleepDuration, workoutSummary } from "@/lib/metrics";
 import { formatNumber, formatDuration, formatCalories, getRecoveryColor, getRecoveryLabel, formatShortDate } from "@/lib/format";
 import { PeriodFilter } from "@/components/period-filter";
 import { DayComparison } from "@/components/day-comparison";
 import { MetricCard } from "@/components/metric-card";
+import { WakeCards } from "@/components/wake-cards";
 import { RecordContext } from "@/components/record-context";
 import { TrendChart } from "@/components/trend-chart";
 import { RecentWorkouts } from "@/components/recent-workouts";
@@ -36,6 +37,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const recoveryReference = recovery?.reference_time ? `Após o sono de ${formatShortDate(recovery.reference_time)}` : "Sem recuperação no período";
   const cycleReference = cycle ? `Ciclo iniciado em ${formatShortDate(cycle.start_time)}${cycle.end_time ? "" : " · em andamento"}` : "Sem ciclo no período";
   const coverage = (count: number, total: number) => total ? `${count}/${total} treinos com dados${count < total ? " · total parcial" : ""}` : "Nenhum treino registrado";
+  const now = Date.now();
 
   return <div className="dashboard-page">
     <header><span className="page-kicker">SEU PAINEL WHOOP</span><h1>Visão geral</h1><p>{profile.data?.first_name ? `${profile.data.first_name}, acompanhe` : "Acompanhe"} sua recuperação, sono e atividades.</p></header>
@@ -56,6 +58,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           <RecordContext start={sleep?.start_time} end={sleep?.end_time} label="Sono principal" state={sleep?.score_state} />
         </MetricCard>
       </div>
+      <WakeCards key={`${query}:${sleep?.end_time ?? ""}`} wakeTime={sleep?.end_time} live={period.end === dateKey(new Date(now))} initialNow={now} />
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <MetricCard title="VFC (HRV)" description="Variação do intervalo de tempo entre os batimentos, medida em milissegundos. Compare com seu próprio histórico para acompanhar sua recuperação." value={hrv == null ? "—" : `${formatNumber(hrv, 1)} ms`} subtitle={recoveryReference} accentColor="green" />
         <MetricCard title="Frequência cardíaca de repouso" description="Estimativa WHOOP dos batimentos por minuto em repouso. Acompanhe as mudanças em relação ao seu padrão habitual." value={restingHR == null ? "—" : `${formatNumber(restingHR)} bpm`} subtitle={recoveryReference} accentColor="green" />

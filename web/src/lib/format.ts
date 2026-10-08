@@ -15,6 +15,13 @@ export function formatDuration(ms: number): string {
   return `${hours}h ${mins}m`;
 }
 
+export function formatElapsedTime(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return "—";
+  const seconds = Math.floor(ms / 1000);
+  return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60]
+    .map(value => String(value).padStart(2, "0")).join(":");
+}
+
 /** Format a timestamp to "Mon DD" like "Mar 10" */
 export function formatShortDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short", day: "numeric" });
